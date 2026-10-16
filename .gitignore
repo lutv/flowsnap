@@ -1,0 +1,9 @@
+node_modules/
+recordings/
+screenshot/
+tmp/
+.env
+.local-scribe/
+.flowsnap/
+sessions/
+*.log
