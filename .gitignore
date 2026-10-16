@@ -1,9 +1,34 @@
+# Dependencies
 node_modules/
+
+# Runtime & Recordings Output
 recordings/
 screenshot/
+screenshots/
 tmp/
-.env
-.local-scribe/
-.flowsnap/
 sessions/
 *.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Local Configurations & Secrets
+.env
+.env.*
+!.env.example
+flowsnap.json
+.flowsnap/
+.local-scribe/
+
+# OS / Editor Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Builds & Desktop Distribution (Tauri / Electron)
+dist/
+build/
+src-tauri/target/

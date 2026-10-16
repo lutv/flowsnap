@@ -22,7 +22,7 @@ export class ConfigManager {
       defaultProfile: 'default',
       profiles: {
         default: {
-          url: 'https://development-legal.odoo.com',
+          url: 'https://demo.odoo.com',
           outDir: './recordings/default',
           stateFile: path.join(GLOBAL_CONFIG_DIR, 'sessions', 'default.json'),
           autoResult: true,

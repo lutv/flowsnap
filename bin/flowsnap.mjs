@@ -42,7 +42,7 @@ function printHelp() {
   --help, -h          Tampilkan bantuan ini
 
 \x1b[1mContoh Penggunaan:\x1b[0m
-  flowsnap start --url https://staging-legal.odoo.com --out ./docs/stages
+  flowsnap start --url https://staging.example.com --out ./docs/stages
   flowsnap start --profile production --title "Panduan Pembuatan Kontrak"
   flowsnap ai-enhance --out ./docs/stages --provider gemini
 `);

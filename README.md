@@ -41,7 +41,10 @@ FlowSnap adalah alternatif mandiri lokal untuk alat dokumentasi alur kerja seper
 
 ### 1. Kloning & Pemasangan Dependensi
 ```bash
-git clone https://github.com/your-username/flowsnap.git
+# Clone repositori via HTTPS atau SSH
+git clone https://github.com/lutv/flowsnap.git
+# atau: git clone git@github.com:lutv/flowsnap.git
+
 cd flowsnap
 npm install
 ```
@@ -62,7 +65,7 @@ npm run test:all
 ./bin/flowsnap.mjs start
 
 # Atau tentukan URL target dan folder penyimpanan:
-./bin/flowsnap.mjs start --url https://staging-legal.odoo.com --out ./recordings/setup-stage --title "SOP Setup Stage"
+./bin/flowsnap.mjs start --url https://staging.example.com --out ./recordings/setup-stage --title "SOP Setup Stage"
 ```
 
 ### 4. Rekam & Sintesis dengan AI (Gemini / OpenAI)
@@ -113,7 +116,7 @@ Buku panduan instruksi agent tersedia di folder:
 
 ```bash
 # Tambah profil baru
-./bin/flowsnap.mjs profile add prod https://legal.gankapital.com
+./bin/flowsnap.mjs profile add prod https://app.example.com
 
 # Lihat profil
 ./bin/flowsnap.mjs profiles
