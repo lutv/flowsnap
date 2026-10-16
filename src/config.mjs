@@ -37,6 +37,10 @@ export class ConfigManager {
             title: 'SOP & Panduan Alur Kerja',
             includeResult: true,
             format: 'detailed'
+          },
+          redaction: {
+            enabled: true,
+            blurRadius: 10
           }
         }
       }
@@ -69,21 +73,42 @@ export class ConfigManager {
 
   getProfile(name = null) {
     const pName = name || this.config.defaultProfile || 'default';
+    const defaultProfileConfig = {
+      url: 'https://example.com',
+      outDir: `./recordings/${pName}`,
+      stateFile: path.join(GLOBAL_CONFIG_DIR, 'sessions', `${pName}.json`),
+      autoResult: true,
+      postWaitMs: 800,
+      ai: { provider: 'gemini', model: 'gemini-1.5-flash', apiKey: '' },
+      markdown: { title: `Panduan Alur (${pName})`, includeResult: true, format: 'detailed' },
+      redaction: { enabled: true, blurRadius: 10 }
+    };
+
     if (!this.config.profiles[pName]) {
-      this.config.profiles[pName] = {
-        url: 'https://example.com',
-        outDir: `./recordings/${pName}`,
-        stateFile: path.join(GLOBAL_CONFIG_DIR, 'sessions', `${pName}.json`),
-        autoResult: true,
-        postWaitMs: 800,
-        ai: { provider: 'gemini', model: 'gemini-1.5-flash', apiKey: '' },
-        markdown: { title: `Panduan Alur (${pName})`, includeResult: true, format: 'detailed' }
-      };
+      this.config.profiles[pName] = defaultProfileConfig;
       this.saveGlobal();
     }
 
-    const prof = this.config.profiles[pName];
-    fs.mkdirSync(path.dirname(prof.stateFile), { recursive: true });
+    const prof = {
+      ...defaultProfileConfig,
+      ...this.config.profiles[pName],
+      markdown: {
+        ...defaultProfileConfig.markdown,
+        ...(this.config.profiles[pName]?.markdown || {})
+      },
+      ai: {
+        ...defaultProfileConfig.ai,
+        ...(this.config.profiles[pName]?.ai || {})
+      },
+      redaction: {
+        ...defaultProfileConfig.redaction,
+        ...(this.config.profiles[pName]?.redaction || {})
+      }
+    };
+
+    if (prof.stateFile) {
+      fs.mkdirSync(path.dirname(prof.stateFile), { recursive: true });
+    }
     return { name: pName, ...prof };
   }
 

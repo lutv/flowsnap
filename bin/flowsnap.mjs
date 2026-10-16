@@ -3,6 +3,7 @@
  * FlowSnap — Autonomous UI Action Recorder & Intelligent SOP Synthesizer.
  */
 
+import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +26,7 @@ function printHelp() {
   \x1b[33mstart\x1b[0m               Mulai sesi perekaman interaktif di browser
   \x1b[33mgenerate\x1b[0m            Re-generate Markdown & HTML dari steps.json
   \x1b[33mai-enhance\x1b[0m          Sempurnakan panduan dengan AI (Gemini / OpenAI / Ollama)
+  \x1b[33mvalidate\x1b[0m            Jalankan pengujian diagnostik & validasi otomatis
   \x1b[33mprofiles\x1b[0m            Daftar profil instance yang tersimpan
   \x1b[33mprofile add <name>\x1b[0m  Simpan profil instance baru
 
@@ -101,6 +103,7 @@ async function handleStart(params) {
     outDir,
     autoResult,
     postWaitMs: prof.postWaitMs,
+    redaction: prof.redaction,
     onStepCaptured: (step, allSteps) => {
       generator.generate(allSteps);
     }
@@ -122,7 +125,10 @@ async function handleStart(params) {
   });
   rl.close();
 
-  console.log('\nMenyusun dokumen panduan akhir...');
+  console.log('\nMenyelesaikan antrean perekaman gambar...');
+  await recorder.waitForIdle();
+
+  console.log('Menyusun dokumen panduan akhir...');
   let finalSteps = recorder.recordedSteps;
 
   if (params.runAI) {
@@ -214,6 +220,11 @@ async function main() {
     await handleGenerate(parsed.params);
   } else if (parsed.command === 'ai-enhance') {
     await handleAIEnhance(parsed.params);
+  } else if (parsed.command === 'validate' || parsed.command === 'test') {
+    const validateScript = path.resolve(fileURLToPath(import.meta.url), '../../scripts/validate.mjs');
+    const { fork } = await import('node:child_process');
+    const child = fork(validateScript);
+    child.on('exit', (code) => process.exit(code || 0));
   } else if (parsed.command === 'profiles' || parsed.command === 'profile') {
     await handleProfiles(args);
   } else {

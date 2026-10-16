@@ -7,18 +7,21 @@ export class ActionRecorder {
     this.outDir = path.resolve(process.cwd(), options.outDir || './recordings');
     this.autoResult = options.autoResult !== false;
     this.postWaitMs = options.postWaitMs || 800;
+    this.redaction = options.redaction || { enabled: true, blurRadius: 10 };
     this.onStepCaptured = options.onStepCaptured || (() => {});
     
     this.stepCounter = 0;
     this.recordedSteps = [];
     this.isCapturing = false;
+    this.eventQueue = [];
 
     fs.mkdirSync(this.outDir, { recursive: true });
   }
 
   async attach() {
     await this.page.exposeFunction('onFlowSnapEvent', async (eventData) => {
-      await this.handleBrowserEvent(eventData);
+      this.eventQueue.push(eventData);
+      this.processQueue();
     });
 
     await this.page.exposeFunction('onFlowSnapToggleResult', async (state) => {
@@ -29,17 +32,41 @@ export class ActionRecorder {
     await this.page.addInitScript(this.getClientScript());
   }
 
-  async handleBrowserEvent(data) {
-    if (this.isCapturing) return;
+  async processQueue() {
+    if (this.isCapturing || this.eventQueue.length === 0) return;
     this.isCapturing = true;
 
+    while (this.eventQueue.length > 0) {
+      const data = this.eventQueue.shift();
+      try {
+        await this.handleBrowserEvent(data);
+      } catch (err) {
+        console.error('Error saat capture action:', err.message);
+      }
+    }
+
+    this.isCapturing = false;
+  }
+
+  async waitForIdle(timeoutMs = 15000) {
+    const start = Date.now();
+    while (this.isCapturing || this.eventQueue.length > 0) {
+      if (Date.now() - start > timeoutMs) {
+        throw new Error(`Timeout menunggu ActionRecorder idle (${timeoutMs}ms)`);
+      }
+      await new Promise(r => setTimeout(r, 50));
+    }
+  }
+
+  async handleBrowserEvent(data) {
     try {
       this.stepCounter++;
       const stepPad = String(this.stepCounter).padStart(3, '0');
       const safeLabel = (data.label || 'action')
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '_')
-        .slice(0, 32);
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 32) || 'action';
 
       // 1. CAPTURE ACTION (BEFORE / TARGET)
       const actionFilename = `step_${stepPad}_01_action_${safeLabel}.png`;
@@ -50,10 +77,10 @@ export class ActionRecorder {
 
       console.log(`\x1b[33m[Step ${this.stepCounter}.1 ACTION]\x1b[0m ${data.type.toUpperCase()}: "${data.label}" -> \x1b[34m${actionFilename}\x1b[0m`);
 
-      // Clear overlay
+      // Clear overlay safely
       await this.page.evaluate(() => {
         if (window.__flowSnapClearHighlight) window.__flowSnapClearHighlight();
-      });
+      }).catch(() => {});
 
       // 2. CAPTURE RESULT (AFTER)
       let resultFilename = null;
@@ -76,6 +103,7 @@ export class ActionRecorder {
         url: data.url,
         actionFile: actionFilename,
         resultFile: resultFilename,
+        isRedacted: !!data.isRedacted,
         timestamp: new Date().toISOString()
       };
 
@@ -84,16 +112,18 @@ export class ActionRecorder {
       this.onStepCaptured(stepRecord, this.recordedSteps);
     } catch (err) {
       console.error('Error saat capture action:', err.message);
-    } finally {
-      this.isCapturing = false;
     }
   }
 
   async captureClean(filePath) {
-    await this.page.evaluate(() => {
+    await this.page.evaluate((redactionCfg) => {
       const hud = document.getElementById('flowsnap-floating-hud');
       if (hud) hud.style.display = 'none';
-    }).catch(() => {});
+
+      if (redactionCfg?.enabled !== false && window.__flowSnapApplyRedaction) {
+        window.__flowSnapApplyRedaction(redactionCfg?.blurRadius || 10);
+      }
+    }, this.redaction).catch(() => {});
 
     await this.page.waitForTimeout(60);
     await this.page.screenshot({ path: filePath, fullPage: false });
@@ -101,6 +131,10 @@ export class ActionRecorder {
     await this.page.evaluate(() => {
       const hud = document.getElementById('flowsnap-floating-hud');
       if (hud) hud.style.display = 'flex';
+
+      if (window.__flowSnapClearRedaction) {
+        window.__flowSnapClearRedaction();
+      }
     }).catch(() => {});
   }
 
@@ -123,8 +157,63 @@ export class ActionRecorder {
         }
       };
 
+      function isSensitiveElement(el) {
+        if (!el) return false;
+        if (el.type === 'password') return true;
+        const ac = (el.getAttribute('autocomplete') || '').toLowerCase();
+        if (ac.includes('password') || ac.includes('cc-')) return true;
+        if (el.hasAttribute('data-flowsnap-redact') || el.classList?.contains('flowsnap-redact')) return true;
+        const nameAndId = `${el.name || ''} ${el.id || ''} ${el.getAttribute('placeholder') || ''}`.toLowerCase();
+        return /password|token|secret|apikey|api_key|pin|cvv|rekening|card_number|credit_card/.test(nameAndId);
+      }
+
+      window.__flowSnapApplyRedaction = (blurRadius = 10) => {
+        if (document.getElementById('flowsnap-redaction-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'flowsnap-redaction-styles';
+        style.textContent = `
+          input[type="password"],
+          input[autocomplete*="password"],
+          input[autocomplete*="cc-"],
+          [data-flowsnap-redact],
+          .flowsnap-redact,
+          input[name*="password" i],
+          input[name*="token" i],
+          input[name*="secret" i],
+          input[name*="api_key" i],
+          input[name*="apikey" i],
+          input[name*="pin" i],
+          input[name*="cvv" i],
+          input[name*="rekening" i],
+          input[id*="password" i],
+          input[id*="token" i],
+          input[id*="secret" i],
+          textarea[name*="secret" i],
+          textarea[name*="token" i] {
+            filter: blur(${blurRadius}px) !important;
+            background: repeating-linear-gradient(45deg, #0f172a, #0f172a 8px, #1e293b 8px, #1e293b 16px) !important;
+            color: transparent !important;
+            text-shadow: none !important;
+            user-select: none !important;
+            border: 1px dashed #64748b !important;
+          }
+        `;
+        document.head.appendChild(style);
+      };
+
+      window.__flowSnapClearRedaction = () => {
+        const style = document.getElementById('flowsnap-redaction-styles');
+        if (style) style.remove();
+      };
+
       function getDesc(el) {
         if (!el) return 'element';
+        if (isSensitiveElement(el)) {
+          if (el.getAttribute('placeholder')) return el.getAttribute('placeholder');
+          if (el.name) return el.name;
+          if (el.id) return `#${el.id}`;
+          return 'sensitive_field';
+        }
         const text = (el.innerText || el.textContent || '').trim().split('\n')[0].slice(0, 40);
         if (text) return text;
         if (el.getAttribute('placeholder')) return el.getAttribute('placeholder');
@@ -210,14 +299,17 @@ export class ActionRecorder {
             url: window.location.href
           });
         } else if (e.key === 'Enter' && e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
-          const val = e.target.value;
-          if (val) {
+          const isSens = isSensitiveElement(e.target);
+          const rawVal = e.target.value;
+          const displayVal = isSens ? '••••••••' : rawVal;
+          if (rawVal) {
             setTimeout(() => {
               window.onFlowSnapEvent && window.onFlowSnapEvent({
                 type: 'submit_input',
-                label: `input_${getDesc(e.target)}_${val.slice(0, 20)}`,
+                label: `input_${getDesc(e.target)}_${displayVal.slice(0, 20)}`,
                 tag: e.target.tagName.toLowerCase(),
-                url: window.location.href
+                url: window.location.href,
+                isRedacted: isSens
               });
             }, 200);
           }
@@ -254,6 +346,7 @@ export class ActionRecorder {
           <div style="width:1px; height:18px; background:rgba(255,255,255,0.2);"></div>
           <button id="fs-btn-snap" style="background:#2563eb; color:#fff; border:none; border-radius:20px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer;" title="Capture Layar (F8)">📸 Snap (F8)</button>
           <button id="fs-btn-toggle" style="background:#10b981; color:#fff; border:none; border-radius:20px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer;" title="Toggle Auto Result">Result: ON</button>
+          <span style="background:rgba(56, 189, 248, 0.15); color:#38bdf8; border:1px solid rgba(56, 189, 248, 0.3); border-radius:20px; padding:3px 8px; font-size:11px; font-weight:600;" title="Auto Redaction Password & Data Sensitif Aktif">🛡️ Redact</span>
         `;
 
         document.body.appendChild(hud);

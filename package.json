@@ -4,13 +4,18 @@
   "description": "Autonomous UI Action Recorder & Intelligent SOP Synthesizer",
   "main": "src/recorder.mjs",
   "bin": {
-    "flowsnap": "./bin/flowsnap.mjs"
+    "flowsnap": "./bin/flowsnap.mjs",
+    "flowsnap-mcp": "./bin/flowsnap-mcp.mjs"
   },
   "type": "module",
   "scripts": {
     "start": "node ./bin/flowsnap.mjs start",
+    "mcp": "node ./bin/flowsnap-mcp.mjs",
     "help": "node ./bin/flowsnap.mjs --help",
-    "test:preflight": "node -e \"import('./src/preflight.mjs').then(m => m.checkPlaywright())\""
+    "test": "node scripts/validate.mjs",
+    "test:all": "node --test test/*.test.mjs",
+    "test:preflight": "node -e \"import('./src/preflight.mjs').then(m => m.checkPlaywright())\"",
+    "validate": "node scripts/validate.mjs"
   },
   "keywords": [
     "scribe-alternative",
