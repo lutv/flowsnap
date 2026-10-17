@@ -33,7 +33,8 @@ import {
   Save,
   HardDrive,
   Sun,
-  Moon
+  Moon,
+  Zap
 } from 'lucide-react';
 
 export default function App() {
@@ -97,6 +98,29 @@ export default function App() {
   const [loadingLib, setLoadingLib] = useState(false);
   const [expandedBrowseId, setExpandedBrowseId] = useState(null);
   const [browsingStepIndex, setBrowsingStepIndex] = useState({});
+
+  // Agent Setup State
+  const [installingAgent, setInstallingAgent] = useState(false);
+  const [agentSetupResults, setAgentSetupResults] = useState(null);
+
+  const setupAgentMcp = async () => {
+    setInstallingAgent(true);
+    try {
+      const res = await fetch('/api/setup-agent', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setAgentSetupResults(data.results);
+        setToastMsg('MCP Server & Skill berhasil diregistrasi ke Antigravity, Claude, Cursor, dan Windsurf!');
+        setTimeout(() => setToastMsg(null), 5000);
+      } else {
+        setErrorMsg(data.error || 'Gagal meregistrasi MCP server');
+      }
+    } catch (err) {
+      setErrorMsg(err.message);
+    } finally {
+      setInstallingAgent(false);
+    }
+  };
 
   // Helper: Open folder in OS File Manager (Finder / Nautilus / Explorer)
   const openInFileManager = async (folder) => {
@@ -1647,6 +1671,64 @@ export default function App() {
                 <div>FALLBACK_GENERATOR: Natural Language Heuristic Engine</div>
                 <div>BLUR_RADIUS: 10px (Military-grade CSS blur)</div>
               </div>
+            </div>
+
+            {/* AI Coding Agent MCP & Skill Integration */}
+            <div className={`border p-5 space-y-4 transition ${
+              theme === 'dark' ? 'border-zinc-800 bg-zinc-950' : 'border-zinc-300 bg-white shadow-xs'
+            }`}>
+              <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
+                <span className="font-bold text-zinc-100 flex items-center gap-2">
+                  <Terminal className="w-3.5 h-3.5 text-indigo-400" />
+                  AI_AGENT_INTEGRATION (MCP_SERVERS & SKILLS)
+                </span>
+                <span className="text-[10px] text-zinc-500 font-mono">AUTONOMOUS_READY</span>
+              </div>
+
+              <p className="text-zinc-400 text-xs leading-relaxed">
+                Pasang dan registrasi tools FlowSnap ke dalam AI Coding Assistant Anda (**Antigravity**, **Claude Desktop**, **Cursor**, **Windsurf**). Agen akan otomatis mengenali skill dan tool perekaman SOP tanpa konfigurasi manual.
+              </p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                <div className={`p-2.5 border transition ${theme === 'dark' ? 'border-zinc-850 bg-black' : 'border-zinc-200 bg-zinc-50'}`}>
+                  <span className="text-[10px] text-zinc-500 block">CLIENT</span>
+                  <span className="font-bold text-zinc-200">Antigravity</span>
+                </div>
+                <div className={`p-2.5 border transition ${theme === 'dark' ? 'border-zinc-850 bg-black' : 'border-zinc-200 bg-zinc-50'}`}>
+                  <span className="text-[10px] text-zinc-500 block">CLIENT</span>
+                  <span className="font-bold text-zinc-200">Claude Desktop</span>
+                </div>
+                <div className={`p-2.5 border transition ${theme === 'dark' ? 'border-zinc-850 bg-black' : 'border-zinc-200 bg-zinc-50'}`}>
+                  <span className="text-[10px] text-zinc-500 block">CLIENT</span>
+                  <span className="font-bold text-zinc-200">Cursor</span>
+                </div>
+                <div className={`p-2.5 border transition ${theme === 'dark' ? 'border-zinc-850 bg-black' : 'border-zinc-200 bg-zinc-50'}`}>
+                  <span className="text-[10px] text-zinc-500 block">CLIENT</span>
+                  <span className="font-bold text-zinc-200">Windsurf</span>
+                </div>
+              </div>
+
+              <button
+                disabled={installingAgent}
+                onClick={setupAgentMcp}
+                className={`w-full py-2.5 font-bold text-xs flex items-center justify-center gap-2 transition rounded-xs ${
+                  theme === 'dark'
+                    ? 'bg-zinc-100 hover:bg-white text-black'
+                    : 'bg-zinc-900 hover:bg-black text-white shadow-xs'
+                }`}
+              >
+                <Zap className={`w-3.5 h-3.5 ${installingAgent ? 'animate-spin' : ''}`} />
+                <span>{installingAgent ? 'MENDAFTARKAN MCP & SKILL...' : '⚡ PASANG / REGISTRASI MCP & SKILL KE SEMUA AGENT'}</span>
+              </button>
+
+              {agentSetupResults && (
+                <div className="p-3 border border-emerald-800 bg-emerald-950/30 text-emerald-300 text-[11px] font-mono space-y-1">
+                  <div className="font-bold text-emerald-200">✔ Registrasi Berhasil:</div>
+                  <div>• {agentSetupResults.mcpServers.length} MCP Client Terkonfigurasi</div>
+                  <div>• {agentSetupResults.skills.length} File SKILL.md Terpasang</div>
+                  <div>• 7 Tool MCP Siap Digunakan: flowsnap_validate, flowsnap_record_automated, dsb.</div>
+                </div>
+              )}
             </div>
 
             {/* Live Memory & Process Telemetry Inspector */}

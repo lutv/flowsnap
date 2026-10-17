@@ -427,6 +427,21 @@ function flowsnapApiPlugin() {
           return;
         }
 
+        // 10. Setup AI Agent MCP & Skill
+        if (req.url === '/api/setup-agent' && req.method === 'POST') {
+          try {
+            const { AgentInstaller } = await import(path.join(rootDir, 'src', 'installer.mjs'));
+            const installer = new AgentInstaller({ rootDir });
+            const results = installer.installAll({ target: 'all' });
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, results }));
+          } catch (err) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          }
+          return;
+        }
+
         next();
       });
     }
