@@ -24,6 +24,7 @@ function printHelp() {
 
 \x1b[1mCommands:\x1b[0m
   \x1b[33mstart\x1b[0m               Mulai sesi perekaman interaktif di browser
+  \x1b[33mserver\x1b[0m              Jalankan FlowSnap Engine & Studio Server (default: 3456)
   \x1b[33mgenerate\x1b[0m            Re-generate Markdown & HTML dari steps.json
   \x1b[33mai-enhance\x1b[0m          Sempurnakan panduan dengan AI (Gemini / OpenAI / Ollama)
   \x1b[33mvalidate\x1b[0m            Jalankan pengujian diagnostik & validasi otomatis
@@ -32,6 +33,7 @@ function printHelp() {
   \x1b[33mprofile add <name>\x1b[0m  Simpan profil instance baru
 
 \x1b[1mOptions:\x1b[0m
+  --port <port>       Port HTTP server (default: 3456)
   --url <url>         Target URL (default: dari profil aktif)
   --out, -o <dir>     Direktori penyimpanan screenshot & output (default: ./recordings)
   --profile, -p <p>   Pilih profil konfigurasi
@@ -63,7 +65,8 @@ function parseArgs(args) {
 
   for (let i = 1; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--url' && args[i + 1]) parsed.params.url = args[++i];
+    if (arg === '--port' && args[i + 1]) parsed.params.port = args[++i];
+    else if (arg === '--url' && args[i + 1]) parsed.params.url = args[++i];
     else if ((arg === '--out' || arg === '-o') && args[i + 1]) parsed.params.outDir = args[++i];
     else if ((arg === '--profile' || arg === '-p') && args[i + 1]) parsed.params.profile = args[++i];
     else if (arg === '--title' && args[i + 1]) parsed.params.title = args[++i];
@@ -272,6 +275,17 @@ async function handleSetupAgent(params) {
   console.log('  Uji kesiapan dengan tool MCP: \x1b[36mflowsnap_validate\x1b[0m\n');
 }
 
+async function handleServer(params) {
+  const port = parseInt(params.port || process.env.FLOWSNAP_PORT || '3456', 10);
+  const { createFlowSnapServer } = await import('../src/server.mjs');
+  const server = createFlowSnapServer();
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`\n\x1b[35m===============================================================\x1b[0m`);
+    console.log(`\x1b[1m\x1b[32m  📸 FLOWSNAP ENGINE SERVER RUNNING ON: http://127.0.0.1:${port}\x1b[0m`);
+    console.log(`\x1b[35m===============================================================\x1b[0m\n`);
+  });
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const parsed = parseArgs(args);
@@ -281,7 +295,9 @@ async function main() {
     return;
   }
 
-  if (parsed.command === 'start') {
+  if (parsed.command === 'server') {
+    await handleServer(parsed.params);
+  } else if (parsed.command === 'start') {
     await handleStart(parsed.params);
   } else if (parsed.command === 'generate') {
     await handleGenerate(parsed.params);

@@ -34,8 +34,33 @@ import {
   HardDrive,
   Sun,
   Moon,
-  Zap
+  Zap,
+  Trash2
 } from 'lucide-react';
+
+
+// Smart Desktop & Web Backend URL Resolver
+export const isDesktopApp = typeof window !== 'undefined' && (
+  window.location.protocol === 'tauri:' || 
+  window.location.hostname === 'tauri.localhost' ||
+  window.location.port === '' ||
+  Boolean(window.__TAURI_INTERNALS__)
+);
+
+export const getApiBase = () => {
+  if (typeof window === 'undefined') return '';
+  const stored = localStorage.getItem('flowsnap_engine_url');
+  if (stored) return stored.replace(/\/$/, '');
+  return isDesktopApp ? 'http://127.0.0.1:3456' : '';
+};
+
+export const resolveAssetUrl = (pathStr) => {
+  if (!pathStr) return '';
+  if (pathStr.startsWith('http://') || pathStr.startsWith('https://')) return pathStr;
+  const base = getApiBase();
+  const cleanPath = pathStr.startsWith('/') ? pathStr : '/' + pathStr;
+  return base ? `${base}${cleanPath}` : cleanPath;
+};
 
 export default function App() {
   const [theme, setTheme] = useState(() => {
@@ -52,6 +77,107 @@ export default function App() {
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
+
+
+  // In-App Log Console & Diagnostic State
+  const [logs, setLogs] = useState([]);
+  const [isLogConsoleOpen, setIsLogConsoleOpen] = useState(false);
+  const [engineStatus, setEngineStatus] = useState('CHECKING'); // 'ONLINE' | 'OFFLINE' | 'CHECKING'
+  const [logFilter, setLogFilter] = useState('ALL'); // 'ALL' | 'ERROR' | 'ACTION' | 'INFO'
+  const logsEndRef = useRef(null);
+
+  const addLog = (level, message, meta = null) => {
+    const entry = {
+      id: Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      timestamp: new Date().toLocaleTimeString(),
+      level: level.toUpperCase(),
+      message: String(message),
+      meta
+    };
+    setLogs((prev) => [...prev.slice(-400), entry]);
+  };
+
+  const clearLogs = () => {
+    setLogs([]);
+  };
+
+  const copyAllLogs = () => {
+    const text = logs.map(l => `[${l.timestamp}] [${l.level}] ${l.message}`).join('\n');
+    navigator.clipboard.writeText(text);
+    setToastMsg('Seluruh log berhasil disalin ke clipboard!');
+    setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  // Safe Centralized API Caller with HTML-Interception Defense
+  const apiCall = async (endpoint, options = {}) => {
+    const base = getApiBase();
+    const fullUrl = endpoint.startsWith('http') ? endpoint : `${base}${endpoint}`;
+    try {
+      const res = await fetch(fullUrl, options);
+      const contentType = res.headers.get('content-type') || '';
+
+      if (contentType.includes('text/html')) {
+        const errorText = `Engine endpoint '${endpoint}' mengembalikan HTML (bukan JSON). Pastikan FlowSnap Engine aktif di ${base || '127.0.0.1:3456'}.`;
+        addLog('ERROR', errorText);
+        setEngineStatus('OFFLINE');
+        return { ok: false, isHtml: true, error: errorText, data: null };
+      }
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        addLog('WARN', `API ${endpoint} status ${res.status}: ${data?.error || res.statusText}`);
+      } else {
+        setEngineStatus('ONLINE');
+      }
+      return { ok: res.ok, status: res.status, data };
+    } catch (err) {
+      addLog('ERROR', `Gagal menghubungi Engine di ${fullUrl}: ${err.message}`);
+      setEngineStatus('OFFLINE');
+      return { ok: false, error: err.message, isNetworkError: true, data: null };
+    }
+  };
+
+  // Fetch backend engine log buffer
+  const fetchEngineLogs = async () => {
+    try {
+      const res = await apiCall('/api/logs?limit=40');
+      if (res.ok && res.data?.logs) {
+        setEngineStatus('ONLINE');
+        setLogs((prev) => {
+          const existingIds = new Set(prev.map(l => l.id));
+          const newEntries = res.data.logs
+            .filter(l => !existingIds.has(l.id))
+            .map(l => ({
+              id: l.id,
+              timestamp: new Date(l.timestamp).toLocaleTimeString(),
+              level: l.level,
+              message: l.message,
+              meta: l.meta
+            }));
+          if (newEntries.length === 0) return prev;
+          return [...prev, ...newEntries].slice(-500);
+        });
+      }
+    } catch {}
+  };
+
+  // Capture uncaught window runtime errors to log console
+  useEffect(() => {
+    addLog('INFO', `FlowSnap Studio initialized [${isDesktopApp ? 'DESKTOP_MODE' : 'WEB_MODE'}] (Target Engine: ${getApiBase() || 'localhost'})`);
+
+    const handleErr = (e) => {
+      addLog('ERROR', `Uncaught: ${e.message} (${e.filename ? e.filename.split('/').pop() : 'inline'}:${e.lineno})`);
+    };
+    const handleRejection = (e) => {
+      addLog('ERROR', `Unhandled Promise: ${e.reason?.message || String(e.reason)}`);
+    };
+    window.addEventListener('error', handleErr);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleErr);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
 
   // Recording Configuration
   const [targetUrl, setTargetUrl] = useState('https://demo.odoo.com');
@@ -106,9 +232,9 @@ export default function App() {
   const setupAgentMcp = async () => {
     setInstallingAgent(true);
     try {
-      const res = await fetch('/api/setup-agent', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
+      const res = await apiCall('/api/setup-agent', { method: 'POST' });
+      const data = res.data;
+      if (res.ok && data?.success) {
         setAgentSetupResults(data.results);
         setToastMsg('MCP Server & Skill berhasil diregistrasi ke Antigravity, Claude, Cursor, dan Windsurf!');
         setTimeout(() => setToastMsg(null), 5000);
@@ -125,9 +251,9 @@ export default function App() {
   // Helper: Open folder in OS File Manager (Finder / Nautilus / Explorer)
   const openInFileManager = async (folder) => {
     try {
-      const res = await fetch(`/api/open-folder?folder=${encodeURIComponent(folder || '')}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Gagal membuka folder di file manager');
+      const res = await apiCall(`/api/open-folder?folder=${encodeURIComponent(folder || '')}`);
+      if (!res.ok) throw new Error(res.data?.error || res.error || 'Gagal membuka folder di file manager');
+      const data = res.data;
       setToastMsg(`Folder dibuka di file manager: ${data.path}`);
       setTimeout(() => setToastMsg(null), 4000);
     } catch (err) {
@@ -151,13 +277,12 @@ export default function App() {
   const saveCustomMarkdown = async (folder) => {
     setSavingMarkdown(true);
     try {
-      const res = await fetch('/api/save-markdown', {
+      const res = await apiCall('/api/save-markdown', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder, markdown: editedMarkdown })
+        body: JSON.stringify({ folder, content: editedMarkdown })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan markdown');
+      if (!res.ok) throw new Error(res.data?.error || res.error || 'Gagal menyimpan markdown');
       setToastMsg('SOP GUIDE.md berhasil diperbarui di disk!');
       setIsEditingMarkdown(false);
       setInspectDetail((prev) => ({ ...prev, markdown: editedMarkdown }));
@@ -192,9 +317,9 @@ export default function App() {
   // 1. Live Session Poller: fetch active session & newly captured steps asynchronously
   const fetchLiveSession = async () => {
     try {
-      const res = await fetch('/api/active-session');
-      if (res.ok) {
-        const data = await res.json();
+      const res = await apiCall('/api/active-session');
+      if (res.ok && res.data) {
+        const data = res.data;
         setIsRecording(data.isRecording);
         setProcessPid(data.pid);
         setLiveSession(data);
@@ -209,10 +334,9 @@ export default function App() {
   // Telemetry Poller: fetch memory & CPU diagnostics
   const fetchTelemetry = async () => {
     try {
-      const res = await fetch('/api/telemetry');
-      if (res.ok) {
-        const data = await res.json();
-        setTelemetry(data);
+      const res = await apiCall('/api/telemetry');
+      if (res.ok && res.data) {
+        setTelemetry(res.data);
       }
     } catch {}
   };
@@ -221,10 +345,9 @@ export default function App() {
   const loadRecordings = async () => {
     setLoadingLib(true);
     try {
-      const res = await fetch('/api/recordings');
-      if (res.ok) {
-        const data = await res.json();
-        setRecordings(data.recordings || []);
+      const res = await apiCall('/api/recordings');
+      if (res.ok && res.data) {
+        setRecordings(res.data.recordings || []);
       }
     } catch {
     } finally {
@@ -237,11 +360,10 @@ export default function App() {
     setInspectRecording(recId);
     setIsEditingMarkdown(false);
     try {
-      const res = await fetch(`/api/recording/${recId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setInspectDetail(data);
-        setEditedMarkdown(data.markdown || '');
+      const res = await apiCall(`/api/recording/${recId}`);
+      if (res.ok && res.data) {
+        setInspectDetail(res.data);
+        setEditedMarkdown(res.data.markdownContent || res.data.markdown || '');
       }
     } catch (err) {
       console.error(err);
@@ -253,10 +375,12 @@ export default function App() {
     fetchLiveSession();
     loadRecordings();
     fetchTelemetry();
+    fetchEngineLogs();
 
     const interval = setInterval(() => {
       fetchLiveSession();
       fetchTelemetry();
+      fetchEngineLogs();
     }, isRecording ? 800 : 3000);
 
     return () => clearInterval(interval);
@@ -271,7 +395,7 @@ export default function App() {
     setDismissedSession(false);
 
     try {
-      const res = await fetch('/api/start-recording', {
+      const res = await apiCall('/api/start-recording', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -287,11 +411,11 @@ export default function App() {
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Gagal memulai perekaman');
+        throw new Error(res.data?.error || res.error || 'Gagal memulai perekaman');
       }
 
-      const data = await res.json();
+      const data = res.data;
+      addLog('ACTION', `Mulai merekam sesi: ${opts.url || targetUrl}`, data);
       setIsRecording(true);
       setProcessPid(data.pid);
       fetchLiveSession();
@@ -317,7 +441,8 @@ export default function App() {
   // Stop Session
   const stopRecording = async () => {
     try {
-      await fetch('/api/stop-recording', { method: 'POST' });
+      addLog('ACTION', 'Menghentikan sesi perekaman...');
+      await apiCall('/api/stop-recording', { method: 'POST' });
       setIsRecording(false);
       setProcessPid(null);
       setTimeout(() => {
@@ -367,6 +492,20 @@ export default function App() {
             }`}>
               v1.0.0
             </span>
+            <button
+              onClick={() => setIsLogConsoleOpen(!isLogConsoleOpen)}
+              className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] border font-mono transition shadow-xs ${
+                engineStatus === 'ONLINE'
+                  ? (theme === 'dark' ? 'border-emerald-800/80 bg-emerald-950/40 text-emerald-300 hover:bg-emerald-950/70' : 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100')
+                  : (theme === 'dark' ? 'border-amber-800/80 bg-amber-950/40 text-amber-300 hover:bg-amber-950/70 animate-pulse' : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 animate-pulse')
+              }`}
+              title="Klik untuk membuka Console / Log Viewer"
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${engineStatus === 'ONLINE' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span>{engineStatus === 'ONLINE' ? 'ENGINE: OK' : 'ENGINE: OFFLINE'}</span>
+              <span className="opacity-70">[{logs.length}]</span>
+            </button>
+
           </div>
         </div>
 
@@ -960,14 +1099,14 @@ export default function App() {
                                   </div>
                                   <div
                                     onClick={() =>
-                                      setLightboxImg(`/recordings/${liveSession.folder}/${latestStep.actionFile}`)
+                                      setLightboxImg(resolveAssetUrl(`/recordings/${liveSession.folder}/${latestStep.actionFile}`))
                                     }
                                     className={`group relative border aspect-video overflow-hidden cursor-zoom-in ${
                                       theme === 'dark' ? 'border-zinc-800 bg-black' : 'border-zinc-300 bg-zinc-100'
                                     }`}
                                   >
                                     <img
-                                      src={`/recordings/${liveSession.folder}/${latestStep.actionFile}`}
+                                      src={resolveAssetUrl(`/recordings/${liveSession.folder}/${latestStep.actionFile}`)}
                                       alt="Action Preview"
                                       className="w-full h-full object-cover group-hover:scale-105 transition"
                                     />
@@ -986,7 +1125,7 @@ export default function App() {
                                   <div
                                     onClick={() =>
                                       latestStep.resultFile &&
-                                      setLightboxImg(`/recordings/${liveSession.folder}/${latestStep.resultFile}`)
+                                      setLightboxImg(resolveAssetUrl(`/recordings/${liveSession.folder}/${latestStep.resultFile}`))
                                     }
                                     className={`group relative border aspect-video overflow-hidden cursor-zoom-in ${
                                       theme === 'dark' ? 'border-zinc-800 bg-black' : 'border-zinc-300 bg-zinc-100'
@@ -995,7 +1134,7 @@ export default function App() {
                                     {latestStep.resultFile ? (
                                       <>
                                         <img
-                                          src={`/recordings/${liveSession.folder}/${latestStep.resultFile}`}
+                                          src={resolveAssetUrl(`/recordings/${liveSession.folder}/${latestStep.resultFile}`)}
                                           alt="Result Preview"
                                           className="w-full h-full object-cover group-hover:scale-105 transition"
                                         />
@@ -1096,7 +1235,7 @@ export default function App() {
                                         theme === 'dark' ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-300 bg-zinc-100'
                                       }`}>
                                         <img
-                                          src={`/recordings/${liveSession?.folder}/${step.actionFile}`}
+                                          src={resolveAssetUrl(`/recordings/${liveSession?.folder}/${step.actionFile}`)}
                                           alt="thumb"
                                           className="w-full h-full object-cover"
                                         />
@@ -1115,7 +1254,7 @@ export default function App() {
                         <div className="flex-1 flex flex-col bg-black">
                           {liveSession?.folder && liveSession?.hasHtml ? (
                             <iframe
-                              src={`/recordings/${liveSession.folder}/index.html`}
+                              src={resolveAssetUrl(`/recordings/${liveSession.folder}/index.html`)}
                               title="Live SOP Preview"
                               className="w-full flex-1 border-0 min-h-[460px]"
                             />
@@ -1264,7 +1403,7 @@ export default function App() {
                             </button>
 
                             <a
-                              href={`/recordings/${rec.id}/index.html`}
+                              href={resolveAssetUrl(`/recordings/${rec.id}/index.html`)}
                               target="_blank"
                               rel="noreferrer"
                               className={`px-2.5 py-1 font-semibold text-[11px] flex items-center gap-1.5 transition rounded-xs ${
@@ -1299,7 +1438,7 @@ export default function App() {
                                 title={`Step ${st.step}: ${st.label || st.type}`}
                               >
                                 <img
-                                  src={`/recordings/${rec.id}/${st.actionFile}`}
+                                  src={resolveAssetUrl(`/recordings/${rec.id}/${st.actionFile}`)}
                                   alt={`Step ${st.step}`}
                                   className="w-full h-full object-cover group-hover:scale-105 transition"
                                   loading="lazy"
@@ -1439,7 +1578,7 @@ export default function App() {
                                     </span>
                                   </div>
                                   <button
-                                    onClick={() => setLightboxImg(`/recordings/${rec.id}/${currentStep.actionFile}`)}
+                                    onClick={() => setLightboxImg(resolveAssetUrl(`/recordings/${rec.id}/${currentStep.actionFile}`))}
                                     className={`flex items-center gap-1 text-[10px] font-mono transition px-2 py-0.5 border rounded-xs ${
                                       theme === 'dark'
                                         ? 'text-zinc-400 hover:text-white border-zinc-800 hover:border-zinc-700 bg-zinc-900/60'
@@ -1455,10 +1594,10 @@ export default function App() {
                                   className={`relative cursor-zoom-in border overflow-hidden group transition ${
                                     theme === 'dark' ? 'bg-black border-zinc-850' : 'bg-zinc-100 border-zinc-200'
                                   }`}
-                                  onClick={() => setLightboxImg(`/recordings/${rec.id}/${currentStep.actionFile}`)}
+                                  onClick={() => setLightboxImg(resolveAssetUrl(`/recordings/${rec.id}/${currentStep.actionFile}`))}
                                 >
                                   <img
-                                    src={`/recordings/${rec.id}/${currentStep.actionFile}`}
+                                    src={resolveAssetUrl(`/recordings/${rec.id}/${currentStep.actionFile}`)}
                                     alt={`Action Step ${currentStep.step}`}
                                     className="w-full h-auto max-h-[380px] object-contain mx-auto transition group-hover:scale-[1.01]"
                                   />
@@ -1489,7 +1628,7 @@ export default function App() {
                                   </div>
                                   {currentStep.resultFile && (
                                     <button
-                                      onClick={() => setLightboxImg(`/recordings/${rec.id}/${currentStep.resultFile}`)}
+                                      onClick={() => setLightboxImg(resolveAssetUrl(`/recordings/${rec.id}/${currentStep.resultFile}`))}
                                       className={`flex items-center gap-1 text-[10px] font-mono transition px-2 py-0.5 border rounded-xs ${
                                         theme === 'dark'
                                           ? 'text-zinc-400 hover:text-white border-zinc-800 hover:border-zinc-700 bg-zinc-900/60'
@@ -1507,10 +1646,10 @@ export default function App() {
                                     className={`relative cursor-zoom-in border overflow-hidden group transition ${
                                       theme === 'dark' ? 'bg-black border-zinc-850' : 'bg-zinc-100 border-zinc-200'
                                     }`}
-                                    onClick={() => setLightboxImg(`/recordings/${rec.id}/${currentStep.resultFile}`)}
+                                    onClick={() => setLightboxImg(resolveAssetUrl(`/recordings/${rec.id}/${currentStep.resultFile}`))}
                                   >
                                     <img
-                                      src={`/recordings/${rec.id}/${currentStep.resultFile}`}
+                                      src={resolveAssetUrl(`/recordings/${rec.id}/${currentStep.resultFile}`)}
                                       alt={`Result Step ${currentStep.step}`}
                                       className="w-full h-auto max-h-[380px] object-contain mx-auto transition group-hover:scale-[1.01]"
                                     />
@@ -1563,7 +1702,7 @@ export default function App() {
                                     >
                                       <div className="w-24 h-14 bg-black overflow-hidden mb-1 relative rounded-xs">
                                         <img
-                                          src={`/recordings/${rec.id}/${st.actionFile}`}
+                                          src={resolveAssetUrl(`/recordings/${rec.id}/${st.actionFile}`)}
                                           alt={`Step ${st.step}`}
                                           className="w-full h-full object-cover"
                                           loading="lazy"
@@ -1864,7 +2003,7 @@ export default function App() {
                 </button>
 
                 <a
-                  href={`/recordings/${inspectDetail.id}/index.html`}
+                  href={resolveAssetUrl(`/recordings/${inspectDetail.id}/index.html`)}
                   target="_blank"
                   rel="noreferrer"
                   className="p-1 border border-zinc-800 hover:bg-zinc-800 text-zinc-300"
@@ -1890,7 +2029,7 @@ export default function App() {
             <div className="flex-1 overflow-hidden">
               {inspectViewMode === 'iframe' && (
                 <iframe
-                  src={`/recordings/${inspectDetail.id}/index.html`}
+                  src={resolveAssetUrl(`/recordings/${inspectDetail.id}/index.html`)}
                   title="SOP Viewer"
                   className="w-full h-full border-0"
                 />
@@ -1915,9 +2054,9 @@ export default function App() {
                         <div>
                           <div className="text-[10px] text-zinc-500 mb-1">AKSI (SEBELUM)</div>
                           <img
-                            src={`/recordings/${inspectDetail.id}/${st.actionFile}`}
+                            src={resolveAssetUrl(`/recordings/${inspectDetail.id}/${st.actionFile}`)}
                             alt="Aksi"
-                            onClick={() => setLightboxImg(`/recordings/${inspectDetail.id}/${st.actionFile}`)}
+                            onClick={() => setLightboxImg(resolveAssetUrl(`/recordings/${inspectDetail.id}/${st.actionFile}`))}
                             className="w-full border border-zinc-850 cursor-zoom-in"
                           />
                         </div>
@@ -1925,9 +2064,9 @@ export default function App() {
                           <div>
                             <div className="text-[10px] text-zinc-500 mb-1">HASIL (SESUDAH)</div>
                             <img
-                              src={`/recordings/${inspectDetail.id}/${st.resultFile}`}
+                              src={resolveAssetUrl(`/recordings/${inspectDetail.id}/${st.resultFile}`)}
                               alt="Hasil"
-                              onClick={() => setLightboxImg(`/recordings/${inspectDetail.id}/${st.resultFile}`)}
+                              onClick={() => setLightboxImg(resolveAssetUrl(`/recordings/${inspectDetail.id}/${st.resultFile}`))}
                               className="w-full border border-zinc-850 cursor-zoom-in"
                             />
                           </div>
@@ -2169,20 +2308,20 @@ export default function App() {
               <div>
                 <span className="text-[10px] text-zinc-400 block mb-1">FOTO AKSI (TARGET HIGHLIGHT)</span>
                 <img
-                  src={`/recordings/${liveSession.folder}/${activePreviewStep.actionFile}`}
+                  src={resolveAssetUrl(`/recordings/${liveSession.folder}/${activePreviewStep.actionFile}`)}
                   alt="Aksi"
                   className="w-full border border-zinc-850 cursor-zoom-in"
-                  onClick={() => setLightboxImg(`/recordings/${liveSession.folder}/${activePreviewStep.actionFile}`)}
+                  onClick={() => setLightboxImg(resolveAssetUrl(`/recordings/${liveSession.folder}/${activePreviewStep.actionFile}`))}
                 />
               </div>
               <div>
                 <span className="text-[10px] text-zinc-400 block mb-1">FOTO HASIL (RESULT)</span>
                 {activePreviewStep.resultFile ? (
                   <img
-                    src={`/recordings/${liveSession.folder}/${activePreviewStep.resultFile}`}
+                    src={resolveAssetUrl(`/recordings/${liveSession.folder}/${activePreviewStep.resultFile}`)}
                     alt="Hasil"
                     className="w-full border border-zinc-850 cursor-zoom-in"
-                    onClick={() => setLightboxImg(`/recordings/${liveSession.folder}/${activePreviewStep.resultFile}`)}
+                    onClick={() => setLightboxImg(resolveAssetUrl(`/recordings/${liveSession.folder}/${activePreviewStep.resultFile}`))}
                   />
                 ) : (
                   <div className="h-40 border border-zinc-850 flex items-center justify-center text-zinc-600 text-xs font-mono">
@@ -2196,6 +2335,159 @@ export default function App() {
               <span>URL: {activePreviewStep.url}</span>
               <span>WAKTU: {activePreviewStep.timestamp ? new Date(activePreviewStep.timestamp).toLocaleTimeString('id-ID') : 'N/A'}</span>
             </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* ============================================================== */}
+      {/* IN-APP REALTIME LOG CONSOLE & DIAGNOSTIC DRAWER                 */}
+      {/* ============================================================== */}
+      {isLogConsoleOpen && (
+        <div className={`fixed bottom-0 left-0 right-0 z-50 border-t shadow-2xl transition-all duration-200 flex flex-col ${
+          theme === 'dark' ? 'bg-zinc-950/95 border-zinc-800 text-zinc-200' : 'bg-white/95 border-zinc-300 text-zinc-800'
+        } backdrop-blur-md max-h-[380px] h-[320px]`}>
+          {/* Console Header Bar */}
+          <div className={`flex items-center justify-between px-4 py-2 border-b text-[11px] select-none ${
+            theme === 'dark' ? 'border-zinc-800/80 bg-zinc-900/60' : 'border-zinc-200 bg-zinc-100/80'
+          }`}>
+            <div className="flex items-center gap-3">
+              <span className="font-bold flex items-center gap-1.5 tracking-wider">
+                <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                FLOWSNAP_SYSTEM_CONSOLE
+              </span>
+
+              {/* Status Pill */}
+              <span className={`px-2 py-0.5 rounded text-[10px] border flex items-center gap-1.5 ${
+                engineStatus === 'ONLINE'
+                  ? (theme === 'dark' ? 'border-emerald-800 bg-emerald-950/50 text-emerald-300' : 'border-emerald-300 bg-emerald-50 text-emerald-800')
+                  : (theme === 'dark' ? 'border-amber-800 bg-amber-950/50 text-amber-300' : 'border-amber-300 bg-amber-50 text-amber-800')
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${engineStatus === 'ONLINE' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                {engineStatus === 'ONLINE' ? `127.0.0.1:${getApiBase() ? getApiBase().split(':').pop() : '3456'} [CONNECTED]` : 'ENGINE OFFLINE'}
+              </span>
+
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-1 ml-2">
+                {['ALL', 'ERROR', 'ACTION', 'INFO'].map(flt => (
+                  <button
+                    key={flt}
+                    onClick={() => setLogFilter(flt)}
+                    className={`px-2 py-0.5 text-[10px] rounded transition ${
+                      logFilter === flt
+                        ? (theme === 'dark' ? 'bg-zinc-800 text-white font-bold' : 'bg-zinc-300 text-zinc-900 font-bold')
+                        : (theme === 'dark' ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900')
+                    }`}
+                  >
+                    {flt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={fetchEngineLogs}
+                className={`px-2 py-1 flex items-center gap-1 text-[10px] border rounded transition ${
+                  theme === 'dark' ? 'border-zinc-700 bg-zinc-800 hover:bg-zinc-700' : 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200'
+                }`}
+                title="Refresh log"
+              >
+                <RefreshCw className="w-3 h-3" />
+                SYNC
+              </button>
+              <button
+                onClick={copyAllLogs}
+                className={`px-2 py-1 flex items-center gap-1 text-[10px] border rounded transition ${
+                  theme === 'dark' ? 'border-zinc-700 bg-zinc-800 hover:bg-zinc-700' : 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200'
+                }`}
+                title="Salin seluruh log ke clipboard"
+              >
+                <Copy className="w-3 h-3" />
+                COPY
+              </button>
+              <button
+                onClick={clearLogs}
+                className={`px-2 py-1 flex items-center gap-1 text-[10px] border rounded transition ${
+                  theme === 'dark' ? 'border-zinc-700 bg-zinc-800 hover:bg-zinc-700' : 'border-zinc-300 bg-zinc-100 hover:bg-zinc-200'
+                }`}
+                title="Bersihkan tampilan log"
+              >
+                <Trash2 className="w-3 h-3" />
+                CLEAR
+              </button>
+              <button
+                onClick={() => setIsLogConsoleOpen(false)}
+                className={`p-1 rounded text-zinc-400 hover:text-white transition ${
+                  theme === 'dark' ? 'hover:bg-zinc-800' : 'hover:bg-zinc-200'
+                }`}
+                title="Tutup console"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Engine Offline Helper Banner */}
+          {engineStatus !== 'ONLINE' && (
+            <div className={`px-4 py-1.5 text-[11px] border-b flex items-center justify-between ${
+              theme === 'dark' ? 'bg-amber-950/30 border-amber-900/50 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900'
+            }`}>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>Engine FlowSnap belum terdeteksi aktif di <strong>{getApiBase() || 'http://127.0.0.1:3456'}</strong>.</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] opacity-80">Jalankan di terminal:</span>
+                <code className="bg-black/40 px-1.5 py-0.5 rounded text-[10px] font-bold">flowsnap server</code>
+                <button
+                  onClick={() => apiCall('/api/status')}
+                  className="px-2 py-0.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-[10px]"
+                >
+                  RECONNECT
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Scrollable Terminal Output */}
+          <div className="flex-1 p-3 overflow-y-auto font-mono text-[11px] space-y-1 selection:bg-zinc-700">
+            {logs.length === 0 ? (
+              <div className="text-zinc-500 italic py-6 text-center">
+                Belum ada aktivitas tercatat. Log sistem akan otomatis tampil di sini secara real-time.
+              </div>
+            ) : (
+              logs
+                .filter(l => logFilter === 'ALL' || l.level === logFilter)
+                .map((log) => {
+                  const levelColors = {
+                    INFO: theme === 'dark' ? 'text-cyan-400' : 'text-cyan-700',
+                    ACTION: theme === 'dark' ? 'text-emerald-400 font-bold' : 'text-emerald-700 font-bold',
+                    WARN: theme === 'dark' ? 'text-amber-400' : 'text-amber-700',
+                    ERROR: theme === 'dark' ? 'text-red-400 font-bold' : 'text-red-700 font-bold',
+                    DEBUG: theme === 'dark' ? 'text-zinc-500' : 'text-zinc-500'
+                  };
+                  return (
+                    <div key={log.id} className="flex items-start gap-2 leading-relaxed hover:bg-zinc-800/20 px-1 rounded">
+                      <span className="text-zinc-500 text-[10px] shrink-0 font-mono select-none">
+                        [{log.timestamp}]
+                      </span>
+                      <span className={`px-1 rounded text-[9px] font-bold shrink-0 select-none ${levelColors[log.level] || 'text-zinc-400'}`}>
+                        [{log.level}]
+                      </span>
+                      <span className={`break-all flex-1 ${
+                        log.level === 'ERROR'
+                          ? (theme === 'dark' ? 'text-red-200' : 'text-red-900')
+                          : (theme === 'dark' ? 'text-zinc-300' : 'text-zinc-800')
+                      }`}>
+                        {log.message}
+                      </span>
+                    </div>
+                  );
+                })
+            )}
+            <div ref={logsEndRef} />
           </div>
         </div>
       )}
