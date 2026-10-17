@@ -103,13 +103,48 @@ function flowsnapApiPlugin() {
           return;
         }
 
-        // 3. Status Check
+        // 3. Status Check with PID liveness verification
         if (req.url === '/api/status' && req.method === 'GET') {
           res.setHeader('Content-Type', 'application/json');
+          if (activeProcess) {
+            try {
+              process.kill(activeProcess.pid, 0);
+            } catch {
+              activeProcess = null;
+              activeSessionData = null;
+            }
+          }
           res.end(JSON.stringify({
             isRecording: !!activeProcess,
             pid: activeProcess?.pid || null
           }));
+          return;
+        }
+
+        // 3a. Check Folder Status (for resume / append flows)
+        if (req.url.startsWith('/api/check-folder') && req.method === 'GET') {
+          const urlObj = new URL(req.url, 'http://localhost');
+          const folder = urlObj.searchParams.get('folder') || '';
+          const dirPath = path.join(rootDir, 'recordings', folder);
+          let exists = fs.existsSync(dirPath);
+          let stepsCount = 0;
+          let lastUrl = null;
+
+          if (exists) {
+            const stepJson = path.join(dirPath, 'steps.json');
+            if (fs.existsSync(stepJson)) {
+              try {
+                const steps = JSON.parse(fs.readFileSync(stepJson, 'utf-8'));
+                stepsCount = steps.length;
+                if (stepsCount > 0) {
+                  lastUrl = steps[stepsCount - 1].url;
+                }
+              } catch {}
+            }
+          }
+
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ exists, folder, stepsCount, lastUrl }));
           return;
         }
 
@@ -131,16 +166,21 @@ function flowsnapApiPlugin() {
           return;
         }
 
-        // 4. Start Recording Session
+        // 4. Start Recording Session (with resume support)
         if (req.url === '/api/start-recording' && req.method === 'POST') {
           let body = '';
           req.on('data', (chunk) => { body += chunk; });
           req.on('end', () => {
             try {
               if (activeProcess) {
-                res.statusCode = 400;
-                res.end(JSON.stringify({ error: 'Sesi perekaman sedang berjalan!' }));
-                return;
+                try {
+                  process.kill(activeProcess.pid, 0);
+                  res.statusCode = 400;
+                  res.end(JSON.stringify({ error: 'Sesi perekaman sedang aktif berjalan!' }));
+                  return;
+                } catch {
+                  activeProcess = null;
+                }
               }
 
               const data = JSON.parse(body || '{}');
@@ -151,6 +191,7 @@ function flowsnapApiPlugin() {
                 url: data.url,
                 title: data.title,
                 outDir,
+                isResume: !!data.resume,
                 startTime: new Date().toISOString()
               };
 
@@ -161,6 +202,7 @@ function flowsnapApiPlugin() {
               if (data.profile) args.push('--profile', data.profile);
               if (!data.autoResult) args.push('--no-result');
               if (data.aiEnhance) args.push('--ai');
+              if (data.resume) args.push('--resume');
 
               activeProcess = spawn('node', args, {
                 cwd: rootDir,
@@ -169,6 +211,10 @@ function flowsnapApiPlugin() {
               });
 
               activeProcess.on('exit', () => {
+                activeProcess = null;
+              });
+
+              activeProcess.on('close', () => {
                 activeProcess = null;
               });
 

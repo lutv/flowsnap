@@ -68,6 +68,7 @@ function parseArgs(args) {
     else if (arg === '--provider' && args[i + 1]) parsed.params.provider = args[++i];
     else if (arg === '--no-result') parsed.params.noResult = true;
     else if (arg === '--ai') parsed.params.runAI = true;
+    else if (arg === '--resume') parsed.params.resume = true;
     else if (arg === '--help' || arg === '-h') parsed.params.help = true;
   }
 
@@ -76,10 +77,25 @@ function parseArgs(args) {
 
 async function handleStart(params) {
   const prof = configMgr.getProfile(params.profile);
-  const targetUrl = params.url || prof.url;
+  let targetUrl = params.url || prof.url;
   const outDir = params.outDir || prof.outDir;
-  const title = params.title || prof.markdown.title;
+  let title = params.title || prof.markdown.title;
   const autoResult = params.noResult ? false : prof.autoResult;
+
+  // Cek apakah mode resume aktif dan ada manifest sebelumnya
+  const manifestPath = path.join(outDir, 'steps.json');
+  if (params.resume && fs.existsSync(manifestPath)) {
+    try {
+      const existing = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+      if (existing.length > 0) {
+        const lastStep = existing[existing.length - 1];
+        if (lastStep.url && lastStep.url.startsWith('http') && !params.url) {
+          targetUrl = lastStep.url;
+        }
+        console.log(`\x1b[35m[FlowSnap Resume]\x1b[0m Melanjutkan sesi "${outDir}" (${existing.length} langkah sebelumnya)...`);
+      }
+    } catch {}
+  }
 
   console.log('\x1b[35m%s\x1b[0m', '===========================================================');
   console.log('\x1b[1m\x1b[32m%s\x1b[0m', '   📸 FLOWSNAP — INTERACTIVE RECORDER & DUAL-CAPTURE      ');
@@ -88,6 +104,7 @@ async function handleStart(params) {
   console.log(`• Output Dir : \x1b[34m${outDir}\x1b[0m`);
   console.log(`• Profile    : \x1b[33m${prof.name}\x1b[0m`);
   console.log(`• Auto Result: \x1b[1m${autoResult ? 'AKTIF (Dual)' : 'NONAKTIF'}\x1b[0m`);
+  if (params.resume) console.log(`• Mode Sesi  : \x1b[1m\x1b[32mRESUME (Lanjutkan langkah sebelumnya)\x1b[0m`);
   console.log('-----------------------------------------------------------');
 
   const browserMgr = new BrowserManager({
@@ -104,6 +121,7 @@ async function handleStart(params) {
     autoResult,
     postWaitMs: prof.postWaitMs,
     redaction: prof.redaction,
+    resume: params.resume,
     onStepCaptured: (step, allSteps) => {
       generator.generate(allSteps);
     }
@@ -116,12 +134,13 @@ async function handleStart(params) {
   console.log('- Tekan \x1b[1mF8\x1b[0m: Instant Screen Capture.');
   console.log('- Tekan \x1b[1mF9\x1b[0m: Active Modal Dialog Capture.');
   console.log('- Floating HUD widget di pojok kanan bawah siap digunakan.');
-  console.log('\x1b[33mTekan Enter atau Ctrl+C di terminal ini untuk mengakhiri rekaman.\x1b[0m\n');
+  console.log('\x1b[33mTekan Enter / Ctrl+C atau tutup jendela Chromium untuk mengakhiri rekaman.\x1b[0m\n');
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   await new Promise((resolve) => {
     rl.question('', () => resolve());
     browser.on('disconnected', () => resolve());
+    page.on('close', () => resolve());
   });
   rl.close();
 

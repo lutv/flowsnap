@@ -18,8 +18,22 @@ export class ActionRecorder {
     this.recordedSteps = [];
     this.isCapturing = false;
     this.eventQueue = [];
+    this.resume = !!options.resume;
 
     fs.mkdirSync(this.outDir, { recursive: true });
+
+    if (this.resume) {
+      const manifestPath = path.join(this.outDir, 'steps.json');
+      if (fs.existsSync(manifestPath)) {
+        try {
+          this.recordedSteps = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+          this.stepCounter = this.recordedSteps.length;
+          console.log(`\x1b[35m[FlowSnap Resume]\x1b[0m Melanjutkan sesi "${path.basename(this.outDir)}" dari langkah #${this.stepCounter}...`);
+        } catch (e) {
+          console.error('[ActionRecorder] Gagal membaca steps.json untuk resume:', e.message);
+        }
+      }
+    }
   }
 
   async attach() {

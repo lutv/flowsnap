@@ -150,9 +150,11 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isRecording]);
 
-  // Start Session
-  const startRecording = async () => {
+  // Start Session (supports fresh start or resuming existing document)
+  const startRecording = async (opts = {}) => {
     setErrorMsg(null);
+    const isResume = !!opts.resume;
+
     try {
       const res = await fetch('/api/start-recording', {
         method: 'POST',
@@ -164,7 +166,8 @@ export default function App() {
           profile: selectedProfile,
           autoResult,
           autoRedact,
-          aiEnhance
+          aiEnhance,
+          resume: isResume
         })
       });
 
@@ -180,6 +183,19 @@ export default function App() {
     } catch (err) {
       setErrorMsg(err.message);
     }
+  };
+
+  // Resume a recording from Library tab
+  const resumeFromLibrary = (rec) => {
+    setOutFolder(rec.id);
+    setSopTitle(rec.title);
+    if (rec.steps && rec.steps.length > 0) {
+      const last = rec.steps[rec.steps.length - 1];
+      if (last.url && last.url.startsWith('http')) {
+        setTargetUrl(last.url);
+      }
+    }
+    setActiveTab('recorder');
   };
 
   // Stop Session
@@ -429,23 +445,57 @@ export default function App() {
 
                   {/* Execution Action Button */}
                   <div className="pt-2">
-                    {isRecording ? (
-                      <button
-                        onClick={stopRecording}
-                        className="w-full py-2.5 bg-red-950 hover:bg-red-900 text-red-200 font-bold flex items-center justify-center gap-2 border border-red-700 transition"
-                      >
-                        <Square className="w-3.5 h-3.5 fill-red-400" />
-                        STOP_RECORDING (FINALISASI DOKUMEN)
-                      </button>
-                    ) : (
-                      <button
-                        onClick={startRecording}
-                        className="w-full py-2.5 bg-zinc-100 hover:bg-white text-black font-bold flex items-center justify-center gap-2 border border-white transition active:translate-y-px"
-                      >
-                        <Play className="w-3.5 h-3.5 fill-black" />
-                        LAUNCH_BROWSER_SESSION
-                      </button>
-                    )}
+                    {(() => {
+                      const existingDoc = recordings.find((r) => r.id === outFolder);
+                      const hasExistingSteps = existingDoc && existingDoc.stepsCount > 0;
+
+                      if (isRecording) {
+                        return (
+                          <button
+                            onClick={stopRecording}
+                            className="w-full py-2.5 bg-red-950 hover:bg-red-900 text-red-200 font-bold flex items-center justify-center gap-2 border border-red-700 transition"
+                          >
+                            <Square className="w-3.5 h-3.5 fill-red-400" />
+                            STOP_RECORDING (FINALISASI DOKUMEN)
+                          </button>
+                        );
+                      }
+
+                      if (hasExistingSteps) {
+                        return (
+                          <div className="space-y-2">
+                            <div className="p-2 border border-emerald-800/80 bg-emerald-950/20 text-[10px] text-emerald-300 flex items-center justify-between">
+                              <span className="font-semibold">📁 SESI TERSIMPAN: {existingDoc.stepsCount} LANGKAH</span>
+                              <span className="text-[9px] text-emerald-400 bg-emerald-900/60 px-1.5 py-0.5">READY_TO_RESUME</span>
+                            </div>
+                            <button
+                              onClick={() => startRecording({ resume: true })}
+                              className="w-full py-2.5 bg-emerald-900 hover:bg-emerald-800 text-emerald-100 font-bold flex items-center justify-center gap-2 border border-emerald-600 transition active:translate-y-px"
+                            >
+                              <Play className="w-3.5 h-3.5 fill-emerald-300" />
+                              RESUME_SESSION (LANJUTKAN KE STEP #{existingDoc.stepsCount + 1})
+                            </button>
+                            <button
+                              onClick={() => startRecording({ resume: false })}
+                              className="w-full py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-[10px] flex items-center justify-center gap-1.5 border border-zinc-800 transition"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              RESTART_FRESH (TIMPA DARI STEP #01)
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <button
+                          onClick={() => startRecording({ resume: false })}
+                          className="w-full py-2.5 bg-zinc-100 hover:bg-white text-black font-bold flex items-center justify-center gap-2 border border-white transition active:translate-y-px"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-black" />
+                          LAUNCH_BROWSER_SESSION (BUKA CHROMIUM)
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -482,10 +532,12 @@ export default function App() {
                   {/* Monitor Header */}
                   <div className="p-3.5 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/40">
                     <div className="flex items-center gap-2">
-                      <Radio className={`w-3.5 h-3.5 ${isRecording ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`} />
-                      <span className="font-bold text-zinc-100">LIVE_ASYNC_FEED</span>
+                      <Radio className={`w-3.5 h-3.5 ${isRecording ? 'text-red-400 animate-pulse' : 'text-zinc-500'}`} />
+                      <span className="font-bold text-zinc-100">
+                        {isRecording ? 'LIVE_ASYNC_FEED (CHROMIUM AKTIF)' : 'DOCUMENT_FEED (CHROMIUM STANDBY)'}
+                      </span>
                       <span className="text-[10px] text-zinc-500 font-mono">
-                        ({liveSteps.length} STEPS CAPTURED)
+                        ({liveSteps.length} STEPS {isRecording ? 'CAPTURED' : 'RECORDED'})
                       </span>
                     </div>
 
@@ -494,6 +546,19 @@ export default function App() {
                         <span className="text-zinc-400 bg-black border border-zinc-850 px-2 py-0.5">
                           DIR: {liveSession.folder}
                         </span>
+                      )}
+                      {!isRecording && liveSession?.folder && liveSteps.length > 0 && (
+                        <button
+                          onClick={() => {
+                            setOutFolder(liveSession.folder);
+                            startRecording({ resume: true });
+                          }}
+                          className="px-2 py-0.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 flex items-center gap-1 font-bold transition"
+                          title="Buka kembali Chromium untuk melanjutkan rekaman"
+                        >
+                          <Play className="w-2.5 h-2.5 fill-emerald-300" />
+                          LANJUTKAN_SESI
+                        </button>
                       )}
                       {liveSession?.viewerUrl && (
                         <button
@@ -533,24 +598,34 @@ export default function App() {
                     </div>
 
                     <span className="text-[10px] text-zinc-500">
-                      {isRecording ? 'AUTO_SYNC: 800MS POLLING' : 'IDLE: STANDBY'}
+                      {isRecording ? 'STATUS: BROWSER_RECORDING (800MS)' : 'STATUS: CHROMIUM_CLOSED / IDLE'}
                     </span>
                   </div>
 
                   {/* VIEW MODE 1: LIVE STREAM FEED */}
                   {previewMode === 'feed' && (
                     <div className="flex-1 p-4 flex flex-col justify-between space-y-4 overflow-y-auto max-h-[560px]">
-                      {/* Spotlight: BARUSAN TERCAPTURE (LATEST STEP) */}
+                      {/* Spotlight: LATEST STEP */}
                       {latestStep ? (
-                        <div className="border-2 border-emerald-800/80 bg-emerald-950/20 p-3.5 space-y-2.5">
-                          <div className="flex items-center justify-between pb-2 border-b border-emerald-900/50">
+                        <div className={`p-3.5 space-y-2.5 border-2 ${
+                          isRecording 
+                            ? 'border-emerald-800/80 bg-emerald-950/20' 
+                            : 'border-zinc-800 bg-zinc-950'
+                        }`}>
+                          <div className="flex items-center justify-between pb-2 border-b border-zinc-850">
                             <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                              <span className="font-bold text-emerald-300 text-xs tracking-wide">
-                                BARUSAN TERCAPTURE • STEP #{String(latestStep.step).padStart(2, '0')}
+                              {isRecording ? (
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                              ) : (
+                                <span className="w-2 h-2 rounded-full bg-zinc-600"></span>
+                              )}
+                              <span className={`font-bold text-xs tracking-wide ${
+                                isRecording ? 'text-emerald-300' : 'text-zinc-300'
+                              }`}>
+                                {isRecording ? 'BARUSAN TERCAPTURE' : 'LANGKAH TERAKHIR TERSIMPAN'} • STEP #{String(latestStep.step).padStart(2, '0')}
                               </span>
                             </div>
-                            <span className="text-[10px] text-emerald-400 bg-emerald-950 border border-emerald-800 px-1.5 py-0.5">
+                            <span className="text-[10px] text-zinc-400 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5">
                               {latestStep.type?.toUpperCase()}
                             </span>
                           </div>
@@ -622,9 +697,25 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between text-[10px] text-zinc-400 border-t border-emerald-950 pt-2 font-mono">
+                          <div className="flex items-center justify-between text-[10px] text-zinc-400 border-t border-zinc-850 pt-2 font-mono">
                             <span className="truncate max-w-[280px]">URL: {latestStep.url}</span>
-                            <span className="text-emerald-400">STATUS: SAVED_TO_DISK</span>
+                            <div className="flex items-center gap-2">
+                              <span className={isRecording ? 'text-emerald-400' : 'text-zinc-500'}>
+                                {isRecording ? 'STATUS: RECORDING_ACTIVE' : 'STATUS: CHROMIUM_CLOSED'}
+                              </span>
+                              {!isRecording && liveSession?.folder && (
+                                <button
+                                  onClick={() => {
+                                    setOutFolder(liveSession.folder);
+                                    startRecording({ resume: true });
+                                  }}
+                                  className="px-2 py-0.5 bg-emerald-900 hover:bg-emerald-800 text-emerald-100 border border-emerald-600 flex items-center gap-1 font-bold transition"
+                                >
+                                  <Play className="w-2.5 h-2.5 fill-emerald-100" />
+                                  LANJUTKAN DARI LANGKAH #{liveSteps.length + 1}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ) : (
@@ -768,6 +859,15 @@ export default function App() {
                             GUIDE.MD_OK
                           </span>
                         )}
+
+                        <button
+                          onClick={() => resumeFromLibrary(rec)}
+                          className="px-2.5 py-1 border border-emerald-800 bg-emerald-950/40 hover:bg-emerald-900 text-emerald-300 font-semibold text-[11px] flex items-center gap-1 transition"
+                          title="Lanjutkan rekaman SOP ini di Chromium"
+                        >
+                          <Play className="w-3 h-3 fill-emerald-300" />
+                          RESUME
+                        </button>
 
                         <button
                           onClick={() => openInspector(rec.id)}
