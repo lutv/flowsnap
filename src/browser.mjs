@@ -16,7 +16,7 @@ export class BrowserManager {
     this.page = null;
   }
 
-  async launch() {
+  async launch(options = {}) {
     const playwright = await checkPlaywright();
     
     let launchErr = null;

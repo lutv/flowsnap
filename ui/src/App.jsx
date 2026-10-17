@@ -391,7 +391,7 @@ export default function App() {
     setErrorMsg(null);
     const isResume = !!opts.resume;
     const targetFolder = opts.folder || outFolder;
-    const targetOutDir = `./recordings/${targetFolder}`;
+    const targetOutDir = opts.absolutePath || `./recordings/${targetFolder}`;
     setDismissedSession(false);
 
     try {
@@ -401,7 +401,9 @@ export default function App() {
         body: JSON.stringify({
           url: opts.url || targetUrl,
           title: opts.title || sopTitle,
+          folder: targetFolder,
           outDir: targetOutDir,
+          absolutePath: opts.absolutePath,
           profile: selectedProfile,
           autoResult,
           autoRedact,
@@ -428,14 +430,23 @@ export default function App() {
   const resumeFromLibrary = (rec) => {
     setOutFolder(rec.id);
     setSopTitle(rec.title);
+    let target = targetUrl;
     if (rec.steps && rec.steps.length > 0) {
       const last = rec.steps[rec.steps.length - 1];
       if (last.url && last.url.startsWith('http')) {
+        target = last.url;
         setTargetUrl(last.url);
       }
     }
     setDismissedSession(false);
     setActiveTab('recorder');
+    startRecording({
+      resume: true,
+      folder: rec.id,
+      title: rec.title,
+      url: target,
+      absolutePath: rec.absolutePath
+    });
   };
 
   // Stop Session
@@ -809,6 +820,27 @@ export default function App() {
                       </button>
                     ) : (
                       <div className="space-y-2">
+                        {recordingsList.some(r => r.id === outFolder) && (
+                          <button
+                            onClick={() => {
+                              const existing = recordingsList.find(r => r.id === outFolder);
+                              startRecording({
+                                resume: true,
+                                folder: outFolder,
+                                absolutePath: existing?.absolutePath,
+                                title: existing?.title || sopTitle
+                              });
+                            }}
+                            className={`w-full py-2.5 font-bold flex items-center justify-center gap-2 border transition active:translate-y-px ${
+                              theme === 'dark'
+                                ? 'bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border-emerald-600'
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-sm'
+                            }`}
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                            RESUME_SESSION (LANJUTKAN "{outFolder}")
+                          </button>
+                        )}
                         <button
                           onClick={() => startRecording({ resume: false })}
                           className={`w-full py-2.5 font-bold flex items-center justify-center gap-2 border transition active:translate-y-px ${
@@ -820,9 +852,6 @@ export default function App() {
                           <Play className={`w-3.5 h-3.5 ${theme === 'dark' ? 'fill-black' : 'fill-white'}`} />
                           LAUNCH_NEW_SESSION (MULAI SESI BARU)
                         </button>
-                        <p className="text-[10px] text-zinc-500 text-center">
-                          💡 Ingin melanjutkan sesi lama? Gunakan tombol <strong>CONTINUE</strong> di panel stream sebelah kanan atau tab <strong>[2] Library</strong>.
-                        </p>
                       </div>
                     )}
                   </div>

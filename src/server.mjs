@@ -343,7 +343,18 @@ export function createFlowSnapServer(options = {}) {
           const data = JSON.parse(body || '{}');
           const binPath = path.join(rootDir, 'bin', 'flowsnap.mjs');
           const targetFolder = data.folder || (data.outDir ? path.basename(data.outDir) : 'default');
-          const resolvedOutDir = path.resolve(recDir, targetFolder);
+          
+          let resolvedOutDir = path.resolve(recDir, targetFolder);
+          if (data.resume) {
+            const candidates = [
+              data.absolutePath,
+              path.join(recDir, targetFolder),
+              path.join(rootDir, 'recordings', targetFolder),
+              path.join(os.homedir(), 'flowsnap', 'recordings', targetFolder)
+            ].filter(Boolean);
+            const found = candidates.find(c => fs.existsSync(c));
+            if (found) resolvedOutDir = found;
+          }
 
           activeSessionData = {
             url: data.url,
