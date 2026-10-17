@@ -17,6 +17,7 @@
     "desktop:build": "export PATH=\"$HOME/.cargo/bin:$PATH\" && tauri build",
     "tauri": "export PATH=\"$HOME/.cargo/bin:$PATH\" && tauri",
     "help": "node ./bin/flowsnap.mjs --help",
+    "setup-agent": "node ./bin/flowsnap.mjs setup-agent",
     "test": "node scripts/validate.mjs",
     "test:all": "node --test test/*.test.mjs",
     "test:preflight": "node -e \"import('./src/preflight.mjs').then(m => m.checkPlaywright())\"",

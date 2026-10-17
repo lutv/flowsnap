@@ -78,36 +78,37 @@ export GEMINI_API_KEY="AIzaSy..."
 
 ## 🤖 Integrasi AI Agents (MCP Server & Skill)
 
-FlowSnap dapat dikontrol langsung oleh AI Agent favorit Anda (Antigravity, Claude Desktop, Cursor, Windsurf).
+FlowSnap dapat dikontrol langsung oleh AI Agent favorit Anda (**Antigravity**, **Claude Desktop**, **Cursor**, **Windsurf**).
 
-### 1. Pasang MCP Server ke AI Agent
-Tambahkan konfigurasi berikut ke file konfigurasi MCP agent Anda:
+### ⚡ Setup Otomatis (1 Perintah)
+Cukup jalankan satu perintah ini, FlowSnap akan mendeteksi seluruh AI agent di komputer target dan otomatis mendaftarkan **MCP Server** serta memasang **Skill**:
 
-**Untuk Antigravity (`~/.gemini/config/mcp_config.json`)**:
-```json
-{
-  "mcpServers": {
-    "flowsnap": {
-      "command": "node",
-      "args": ["/absolute/path/to/flowsnap/bin/flowsnap-mcp.mjs"]
-    }
-  }
-}
+```bash
+# Otomatis konfigurasi Antigravity, Claude Desktop, Cursor, dan Windsurf:
+npm run setup-agent
+
+# Atau via CLI:
+./bin/flowsnap.mjs setup-agent --target all
 ```
 
-**Untuk Claude Desktop (`claude_desktop_config.json`) & Cursor (`mcp.json`)**:
-Gunakan struktur `mcpServers` yang sama seperti di atas.
+Perintah ini otomatis:
+1. Mendaftarkan entry `flowsnap` ke file `mcp_config.json` / `claude_desktop_config.json` / `mcp.json`.
+2. Menghasilkan schema JSON alat diagnostik & lazy tools untuk Antigravity (`~/.gemini/antigravity-cli/mcp/flowsnap/`).
+3. Menginstal `SKILL.md` ke folder skill global & proyek (`~/.gemini/config/skills/flowsnap/` dan `.agents/skills/flowsnap/`).
 
-### 2. Tools MCP yang Disediakan
+---
+
+### 🛠️ Tools MCP yang Disediakan
 - `flowsnap_record_automated`: Perekaman alur UI headless otomatis dari daftar aksi JSON.
 - `flowsnap_generate_sop`: Re-generate dokumen `GUIDE.md` & `index.html` dari folder rekaman.
 - `flowsnap_ai_enhance`: Sintesis langkah rekaman menjadi SOP teknis formal via AI.
 - `flowsnap_list_profiles` & `flowsnap_get_profile`: Membaca konfigurasi instance/profil.
 - `flowsnap_validate`: Pre-flight diagnostik Playwright & browser.
 
-### 3. Agent Skill (`SKILL.md`)
+### 📚 Agent Skill (`SKILL.md`)
 Buku panduan instruksi agent tersedia di folder:
 - Local Project: [skills/flowsnap/SKILL.md](skills/flowsnap/SKILL.md)
+- Workspace Agent: [.agents/skills/flowsnap/SKILL.md](.agents/skills/flowsnap/SKILL.md)
 - Antigravity Workspace: `.agents/skills/flowsnap/SKILL.md`
 
 ---

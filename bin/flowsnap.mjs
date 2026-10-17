@@ -27,6 +27,7 @@ function printHelp() {
   \x1b[33mgenerate\x1b[0m            Re-generate Markdown & HTML dari steps.json
   \x1b[33mai-enhance\x1b[0m          Sempurnakan panduan dengan AI (Gemini / OpenAI / Ollama)
   \x1b[33mvalidate\x1b[0m            Jalankan pengujian diagnostik & validasi otomatis
+  \x1b[33msetup-agent\x1b[0m         Install MCP Server & Skill otomatis ke Antigravity, Claude, Cursor
   \x1b[33mprofiles\x1b[0m            Daftar profil instance yang tersimpan
   \x1b[33mprofile add <name>\x1b[0m  Simpan profil instance baru
 
@@ -35,6 +36,7 @@ function printHelp() {
   --out, -o <dir>     Direktori penyimpanan screenshot & output (default: ./recordings)
   --profile, -p <p>   Pilih profil konfigurasi
   --title <text>      Judul dokumen panduan / SOP
+  --target <client>   Target client untuk setup-agent (all | antigravity | claude | cursor | windsurf)
   --no-result         Hanya rekam aksi klik (nonaktifkan capture result)
   --ai                Langsung enhance panduan dengan AI setelah rekaman selesai
   --ai-key <key>      API Key untuk AI (Gemini / OpenAI)
@@ -43,6 +45,7 @@ function printHelp() {
 
 \x1b[1mContoh Penggunaan:\x1b[0m
   flowsnap start --url https://staging.example.com --out ./docs/stages
+  flowsnap setup-agent --target all
   flowsnap start --profile production --title "Panduan Pembuatan Kontrak"
   flowsnap ai-enhance --out ./docs/stages --provider gemini
 `);
@@ -64,6 +67,7 @@ function parseArgs(args) {
     else if ((arg === '--out' || arg === '-o') && args[i + 1]) parsed.params.outDir = args[++i];
     else if ((arg === '--profile' || arg === '-p') && args[i + 1]) parsed.params.profile = args[++i];
     else if (arg === '--title' && args[i + 1]) parsed.params.title = args[++i];
+    else if (arg === '--target' && args[i + 1]) parsed.params.target = args[++i];
     else if (arg === '--ai-key' && args[i + 1]) parsed.params.aiKey = args[++i];
     else if (arg === '--provider' && args[i + 1]) parsed.params.provider = args[++i];
     else if (arg === '--no-result') parsed.params.noResult = true;
@@ -225,6 +229,49 @@ async function handleProfiles(rawArgs) {
   });
 }
 
+async function handleSetupAgent(params) {
+  const { AgentInstaller } = await import('../src/installer.mjs');
+  const installer = new AgentInstaller();
+  const target = params.target || 'all';
+
+  console.log('\x1b[35m%s\x1b[0m', '===========================================================');
+  console.log('\x1b[1m\x1b[36m[FlowSnap Setup]\x1b[0m Menginstal MCP Server & AI Agent Skill...');
+  console.log('\x1b[35m%s\x1b[0m', '===========================================================');
+
+  const results = installer.installAll({ target });
+
+  if (results.mcpServers.length > 0) {
+    console.log('\n\x1b[1m\x1b[32m✔ MCP Servers Registered:\x1b[0m');
+    for (const s of results.mcpServers) {
+      console.log(`  • \x1b[33m${s.client}\x1b[0m -> ${s.path}`);
+    }
+  }
+
+  if (results.schemas.length > 0) {
+    console.log('\n\x1b[1m\x1b[32m✔ Antigravity Lazy Schemas Generated:\x1b[0m');
+    for (const sc of results.schemas) {
+      console.log(`  • ${sc.count} tool schemas di: ${sc.dir}`);
+    }
+  }
+
+  if (results.skills.length > 0) {
+    console.log('\n\x1b[1m\x1b[32m✔ FlowSnap Agent Skill Installed:\x1b[0m');
+    for (const sk of results.skills) {
+      console.log(`  • ${sk}`);
+    }
+  }
+
+  if (results.errors.length > 0) {
+    console.log('\n\x1b[1m\x1b[31m⚠ Beberapa target dilewati:\x1b[0m');
+    for (const err of results.errors) {
+      console.log(`  • [${err.client}] ${err.error}`);
+    }
+  }
+
+  console.log('\n\x1b[32m✔ Instalasi selesai!\x1b[0m AI Coding Agent Anda sekarang siap menggunakan FlowSnap.');
+  console.log('  Uji kesiapan dengan tool MCP: \x1b[36mflowsnap_validate\x1b[0m\n');
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const parsed = parseArgs(args);
@@ -245,6 +292,8 @@ async function main() {
     const { fork } = await import('node:child_process');
     const child = fork(validateScript);
     child.on('exit', (code) => process.exit(code || 0));
+  } else if (parsed.command === 'setup-agent' || parsed.command === 'install-mcp' || parsed.command === 'setup') {
+    await handleSetupAgent(parsed.params);
   } else if (parsed.command === 'profiles' || parsed.command === 'profile') {
     await handleProfiles(args);
   } else {

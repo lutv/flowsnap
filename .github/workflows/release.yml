@@ -1,0 +1,115 @@
+name: Release FlowSnap
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for release (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm --prefix ui ci
+
+      - name: Run test suite
+        run: npm run test:all
+
+      - name: Build Web Studio (UI)
+        run: npm run ui:build
+
+      - name: Determine version tag
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Package Distribution Archives
+        run: |
+          TAG="${{ steps.vars.outputs.tag }}"
+          DIST_DIR="flowsnap-${TAG}"
+          mkdir -p "$DIST_DIR"
+
+          # Copy runtime files and built assets
+          cp -r bin src scripts .agents skills package.json package-lock.json README.md "$DIST_DIR/"
+          mkdir -p "$DIST_DIR/ui"
+          cp -r ui/dist "$DIST_DIR/ui/"
+
+          # Make scripts executable
+          chmod +x "$DIST_DIR/bin/"* "$DIST_DIR/scripts/"*.sh
+
+          # Create Tarball and Zip
+          tar -czf "${DIST_DIR}.tar.gz" "$DIST_DIR"
+          zip -rq "${DIST_DIR}.zip" "$DIST_DIR"
+
+          # Generate Checksums
+          sha256sum "${DIST_DIR}.tar.gz" "${DIST_DIR}.zip" > SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: FlowSnap ${{ steps.vars.outputs.tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            flowsnap-${{ steps.vars.outputs.tag }}.tar.gz
+            flowsnap-${{ steps.vars.outputs.tag }}.zip
+            SHA256SUMS.txt
+          body: |
+            ## 📸 FlowSnap ${{ steps.vars.outputs.tag }} — Autonomous UI Action Recorder & Intelligent SOP Synthesizer
+
+            ### ✨ Fitur Unggulan
+            - **Dual-Capture Technology**: Tangkapan layar otomatis sebelum (*action*) dan sesudah (*result*) setiap aksi klik / submit.
+            - **Privacy First & Auto-Redaction**: Penyamaran otomatis elemen sensitif (*passwords, tokens, PINs, personal info*) menggunakan DOM blurring dan heuristic metadata sanitization.
+            - **Ergonomic Studio (Dark & Light Mode)**: Dashboard web interaktif dengan live telemetry capture stream, viewer SOP mandiri, dan image lightbox zoom.
+            - **🤖 One-Command AI Agent Setup**: Installer otomatis mengonfigurasi **MCP Server** dan **Skill** ke dalam coding agent Anda (**Antigravity**, **Claude Desktop**, **Cursor**, **Windsurf**).
+
+            ---
+
+            ### 🚀 Panduan Instalasi Cepat
+
+            #### 1. Download & Extract Release
+            ```bash
+            tar -xzf flowsnap-${{ steps.vars.outputs.tag }}.tar.gz
+            cd flowsnap-${{ steps.vars.outputs.tag }}
+            ```
+
+            #### 2. Jalankan Installer (Otomatis Pasang CLI, MCP, & Skill)
+            ```bash
+            ./scripts/install.sh
+            ```
+
+            #### 3. Jalankan FlowSnap Studio
+            ```bash
+            flowsnap start
+            ```
+
+            Setelah installer selesai, AI Coding Agent Anda (**Antigravity**, **Claude**, **Cursor**) langsung dapat memanggil tools FlowSnap seperti `flowsnap_record_automated`, `flowsnap_generate_sop`, dan `flowsnap_validate`!
