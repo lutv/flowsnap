@@ -73,11 +73,23 @@ fn try_start_engine(app: &tauri::App) {
 
   for script in &server_candidates {
     if script.exists() {
-      println!("[FlowSnap Rust] Found server script: {:?}", script);
-      let working_dir = script.parent().and_then(|p| p.parent()).unwrap_or(Path::new("."));
+      let abs_script = std::fs::canonicalize(script)
+        .map(|p| {
+          let s = p.to_string_lossy();
+          if cfg!(windows) && s.starts_with(r"\\?\") {
+            PathBuf::from(&s[4..])
+          } else {
+            p
+          }
+        })
+        .unwrap_or_else(|_| script.clone());
+
+      let working_dir = abs_script.parent().and_then(|p| p.parent()).unwrap_or(Path::new("."));
+      println!("[FlowSnap Rust] Found server script: {:?}", abs_script);
+      println!("[FlowSnap Rust] Engine working dir: {:?}", working_dir);
 
       let mut cmd = Command::new(&node_bin);
-      cmd.arg(script).arg("--port").arg("3456");
+      cmd.arg(&abs_script).arg("--port").arg("3456");
       cmd.current_dir(working_dir);
 
       #[cfg(windows)]
