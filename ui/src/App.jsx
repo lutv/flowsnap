@@ -1202,14 +1202,14 @@ export default function App() {
                                   isExpanded
                                     ? (theme === 'dark'
                                         ? 'border-zinc-500 bg-zinc-800 text-white hover:bg-zinc-700'
-                                        : 'app-btn-dark shadow-sm')
+                                        : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 shadow-xs')
                                     : (theme === 'dark'
                                         ? 'border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300'
                                         : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 shadow-xs')
                                 }`}
-                                title="Browse all captured screenshots for this SOP"
+                                title={isExpanded ? 'Tutup browser tangkapan layar' : 'Buka browser semua tangkapan layar untuk SOP ini'}
                               >
-                                <Camera className="w-3.5 h-3.5 text-current" />
+                                <Camera className="w-3.5 h-3.5 text-zinc-400" />
                                 <span>{isExpanded ? 'TUTUP_SCREENSHOTS' : `BROWSE_SCREENSHOTS (${totalSteps})`}</span>
                               </button>
                             )}
@@ -1280,7 +1280,11 @@ export default function App() {
                                   className="w-full h-full object-cover group-hover:scale-105 transition"
                                   loading="lazy"
                                 />
-                                <div className="absolute top-0 left-0 bg-black/80 px-1 py-0.2 text-[9px] font-mono text-zinc-300">
+                                <div className={`absolute top-1 left-1 text-[9px] font-mono font-bold px-1.5 py-0.2 border rounded-xs transition shadow-2xs ${
+                                  theme === 'dark'
+                                    ? 'bg-black/85 text-zinc-300 border-zinc-700'
+                                    : 'bg-white/95 text-zinc-800 border-zinc-300 backdrop-blur-xs font-semibold'
+                                }`}>
                                   #{String(st.step).padStart(2, '0')}
                                 </div>
                               </div>
@@ -1540,7 +1544,11 @@ export default function App() {
                                           className="w-full h-full object-cover"
                                           loading="lazy"
                                         />
-                                        <div className="absolute top-0 left-0 bg-black/80 text-[9px] text-zinc-300 font-mono px-1">
+                                        <div className={`absolute top-1 left-1 text-[9px] font-mono font-bold px-1.5 py-0.2 border rounded-xs transition shadow-2xs ${
+                                          theme === 'dark'
+                                            ? 'bg-black/85 text-zinc-300 border-zinc-700'
+                                            : 'bg-white/95 text-zinc-800 border-zinc-300 backdrop-blur-xs font-semibold'
+                                        }`}>
                                           #{String(st.step).padStart(2, '0')}
                                         </div>
                                       </div>
