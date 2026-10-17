@@ -113,6 +113,24 @@ function flowsnapApiPlugin() {
           return;
         }
 
+        // 3b. Memory & Process Telemetry Inspector
+        if (req.url === '/api/telemetry' && req.method === 'GET') {
+          res.setHeader('Content-Type', 'application/json');
+          const mem = process.memoryUsage();
+          res.end(JSON.stringify({
+            rssMb: Number((mem.rss / 1024 / 1024).toFixed(1)),
+            heapUsedMb: Number((mem.heapUsed / 1024 / 1024).toFixed(1)),
+            heapTotalMb: Number((mem.heapTotal / 1024 / 1024).toFixed(1)),
+            externalMb: Number((mem.external / 1024 / 1024).toFixed(1)),
+            arrayBuffersMb: Number(((mem.arrayBuffers || 0) / 1024 / 1024).toFixed(1)),
+            uptimeSec: Math.round(process.uptime()),
+            pid: process.pid,
+            platform: process.platform,
+            nodeVersion: process.version
+          }));
+          return;
+        }
+
         // 4. Start Recording Session
         if (req.url === '/api/start-recording' && req.method === 'POST') {
           let body = '';

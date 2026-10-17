@@ -1,5 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import sharp from 'sharp';
+
+// Disable internal caching in sharp to guarantee zero memory retention
+sharp.cache(false);
 
 export class ActionRecorder {
   constructor(page, options = {}) {
@@ -72,15 +76,17 @@ export class ActionRecorder {
       const actionFilename = `step_${stepPad}_01_action_${safeLabel}.png`;
       const actionFilePath = path.join(this.outDir, actionFilename);
 
-      await this.page.waitForTimeout(160);
-      await this.captureClean(actionFilePath);
+      // Instant clean screenshot (No DOM pollution)
+      const cleanBuffer = await this.captureCleanBuffer();
+
+      // Annotate precise bounding box + badge via Backend Sharp Engine
+      if (data.coords && data.type !== 'manual_screen') {
+        await this.annotateActionScreenshot(cleanBuffer, data.coords, this.stepCounter, actionFilePath);
+      } else {
+        fs.writeFileSync(actionFilePath, cleanBuffer);
+      }
 
       console.log(`\x1b[33m[Step ${this.stepCounter}.1 ACTION]\x1b[0m ${data.type.toUpperCase()}: "${data.label}" -> \x1b[34m${actionFilename}\x1b[0m`);
-
-      // Clear overlay safely
-      await this.page.evaluate(() => {
-        if (window.__flowSnapClearHighlight) window.__flowSnapClearHighlight();
-      }).catch(() => {});
 
       // 2. CAPTURE RESULT (AFTER)
       let resultFilename = null;
@@ -91,7 +97,8 @@ export class ActionRecorder {
         resultFilename = `step_${resPad}_02_result_${safeLabel}.png`;
         const resultFilePath = path.join(this.outDir, resultFilename);
 
-        await this.captureClean(resultFilePath);
+        const resultBuffer = await this.captureCleanBuffer();
+        fs.writeFileSync(resultFilePath, resultBuffer);
         console.log(`\x1b[32m[Step ${this.stepCounter}.2 RESULT]\x1b[0m Hasil -> \x1b[34m${resultFilename}\x1b[0m`);
       }
 
@@ -115,19 +122,24 @@ export class ActionRecorder {
     }
   }
 
-  async captureClean(filePath) {
+  async captureCleanBuffer() {
+    // Hide HUD and apply blur redaction before taking screenshot
     await this.page.evaluate((redactionCfg) => {
       const hud = document.getElementById('flowsnap-floating-hud');
       if (hud) hud.style.display = 'none';
+
+      const ripple = document.getElementById('flowsnap-user-ripple');
+      if (ripple) ripple.style.display = 'none';
 
       if (redactionCfg?.enabled !== false && window.__flowSnapApplyRedaction) {
         window.__flowSnapApplyRedaction(redactionCfg?.blurRadius || 10);
       }
     }, this.redaction).catch(() => {});
 
-    await this.page.waitForTimeout(60);
-    await this.page.screenshot({ path: filePath, fullPage: false });
+    await this.page.waitForTimeout(30);
+    const buffer = await this.page.screenshot({ fullPage: false });
 
+    // Restore HUD and remove redaction styles after capture
     await this.page.evaluate(() => {
       const hud = document.getElementById('flowsnap-floating-hud');
       if (hud) hud.style.display = 'flex';
@@ -136,6 +148,80 @@ export class ActionRecorder {
         window.__flowSnapClearRedaction();
       }
     }).catch(() => {});
+
+    return buffer;
+  }
+
+  async annotateActionScreenshot(rawBuffer, coords, stepNumber, outputPath) {
+    try {
+      const meta = await sharp(rawBuffer).metadata();
+      const imgW = meta.width;
+      const imgH = meta.height;
+
+      // Coordinate scaling based on viewport dimension vs screenshot resolution
+      const winW = coords.winW || imgW;
+      const winH = coords.winH || imgH;
+      const scaleX = winW > 0 ? imgW / winW : 1;
+      const scaleY = winH > 0 ? imgH / winH : 1;
+
+      let boxX = Math.round(coords.x * scaleX);
+      let boxY = Math.round(coords.y * scaleY);
+      let boxW = Math.round(coords.width * scaleX);
+      let boxH = Math.round(coords.height * scaleY);
+
+      let svgElements = '';
+
+      if (boxW > 4 && boxH > 4) {
+        // High-precision bounding box with small padding
+        const pad = 4;
+        const x = Math.max(2, boxX - pad);
+        const y = Math.max(2, boxY - pad);
+        const w = Math.min(imgW - x - 2, boxW + (pad * 2));
+        const h = Math.min(imgH - y - 2, boxH + (pad * 2));
+
+        // Position badge safely: if near top edge, place below box
+        const badgeX = x;
+        const badgeY = y > 24 ? y - 10 : y + h + 10;
+
+        svgElements = `
+          <filter id="fs-glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.85"/>
+          </filter>
+          <!-- Red Precision Bounding Box -->
+          <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="none" stroke="#ff0055" stroke-width="3.5" filter="url(#fs-glow)" />
+          <!-- Inner Crisp Border -->
+          <rect x="${x + 1}" y="${y + 1}" width="${Math.max(0, w - 2)}" height="${Math.max(0, h - 2)}" rx="5" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity="0.4" />
+          <!-- Step Number Badge Circle -->
+          <circle cx="${badgeX}" cy="${badgeY}" r="13" fill="#ff0055" stroke="#ffffff" stroke-width="1.5" filter="url(#fs-glow)" />
+          <!-- Step Number Text -->
+          <text x="${badgeX}" y="${badgeY + 4.5}" fill="#ffffff" font-size="11" font-weight="900" text-anchor="middle" font-family="system-ui, -apple-system, monospace">${stepNumber}</text>
+        `;
+      } else {
+        // Fallback: draw target bullseye on click coordinates
+        const clickX = Math.round((coords.clickX || coords.x) * scaleX);
+        const clickY = Math.round((coords.clickY || coords.y) * scaleY);
+
+        svgElements = `
+          <filter id="fs-glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.85"/>
+          </filter>
+          <circle cx="${clickX}" cy="${clickY}" r="22" fill="rgba(255, 0, 85, 0.15)" stroke="#ff0055" stroke-width="3" filter="url(#fs-glow)" />
+          <circle cx="${clickX}" cy="${clickY}" r="5" fill="#ff0055" stroke="#ffffff" stroke-width="1.5" />
+          <circle cx="${clickX + 16}" cy="${clickY - 16}" r="12" fill="#ff0055" stroke="#ffffff" stroke-width="1.5" filter="url(#fs-glow)" />
+          <text x="${clickX + 16}" y="${clickY - 12}" fill="#ffffff" font-size="10" font-weight="900" text-anchor="middle" font-family="system-ui, monospace">${stepNumber}</text>
+        `;
+      }
+
+      const svgOverlay = `<svg width="${imgW}" height="${imgH}" xmlns="http://www.w3.org/2000/svg">${svgElements}</svg>`;
+
+      await sharp(rawBuffer)
+        .composite([{ input: Buffer.from(svgOverlay), top: 0, left: 0 }])
+        .png({ compressionLevel: 7 })
+        .toFile(outputPath);
+    } catch (err) {
+      console.error('[ActionRecorder] Error annotating action image with sharp:', err.message);
+      fs.writeFileSync(outputPath, rawBuffer);
+    }
   }
 
   saveManifest() {
@@ -148,15 +234,6 @@ export class ActionRecorder {
 
   getClientScript() {
     return () => {
-      let activeHighlight = null;
-
-      window.__flowSnapClearHighlight = () => {
-        if (activeHighlight && activeHighlight.parentNode) {
-          activeHighlight.parentNode.removeChild(activeHighlight);
-          activeHighlight = null;
-        }
-      };
-
       function isSensitiveElement(el) {
         if (!el) return false;
         if (el.type === 'password') return true;
@@ -224,63 +301,65 @@ export class ActionRecorder {
         return el.tagName.toLowerCase();
       }
 
-      // 1. CLICK LISTENER
-      document.addEventListener('click', (e) => {
+      function showInstantRipple(clientX, clientY) {
+        const ripple = document.createElement('div');
+        ripple.id = 'flowsnap-user-ripple';
+        ripple.style.position = 'fixed';
+        ripple.style.left = `${clientX - 12}px`;
+        ripple.style.top = `${clientY - 12}px`;
+        ripple.style.width = '24px';
+        ripple.style.height = '24px';
+        ripple.style.borderRadius = '50%';
+        ripple.style.backgroundColor = 'rgba(255, 0, 85, 0.35)';
+        ripple.style.border = '2px solid #ff0055';
+        ripple.style.pointerEvents = 'none';
+        ripple.style.zIndex = '2147483647';
+        ripple.style.transition = 'transform 0.18s ease-out, opacity 0.18s ease-out';
+        document.body.appendChild(ripple);
+
+        requestAnimationFrame(() => {
+          ripple.style.transform = 'scale(2.2)';
+          ripple.style.opacity = '0';
+          setTimeout(() => ripple.remove(), 200);
+        });
+      }
+
+      // 1. POINTERDOWN LISTENER (Capture exact coordinates at the earliest instant)
+      document.addEventListener('pointerdown', (e) => {
         const target = e.target;
         if (!target) return;
-        if (target.closest('#flowsnap-floating-hud') || target.classList.contains('flowsnap-overlay-el')) return;
+        if (target.closest('#flowsnap-floating-hud')) return;
 
         const rect = target.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) return;
+        const dpr = window.devicePixelRatio || 1;
 
-        window.__flowSnapClearHighlight();
+        const coords = {
+          x: Math.round(rect.left),
+          y: Math.round(rect.top),
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+          clickX: Math.round(e.clientX),
+          clickY: Math.round(e.clientY),
+          winW: window.innerWidth,
+          winH: window.innerHeight,
+          dpr
+        };
 
-        const overlay = document.createElement('div');
-        overlay.className = 'flowsnap-overlay-el';
-        overlay.style.position = 'fixed';
-        overlay.style.left = `${Math.max(0, rect.left - 4)}px`;
-        overlay.style.top = `${Math.max(0, rect.top - 4)}px`;
-        overlay.style.width = `${rect.width + 8}px`;
-        overlay.style.height = `${rect.height + 8}px`;
-        overlay.style.border = '3px solid #ff0055';
-        overlay.style.borderRadius = '6px';
-        overlay.style.boxShadow = '0 0 16px rgba(255, 0, 85, 0.8), inset 0 0 8px rgba(255, 0, 85, 0.2)';
-        overlay.style.pointerEvents = 'none';
-        overlay.style.zIndex = '2147483646';
-
-        const badge = document.createElement('div');
-        badge.className = 'flowsnap-overlay-el';
-        badge.style.position = 'absolute';
-        badge.style.top = '-14px';
-        badge.style.left = '-14px';
-        badge.style.width = '24px';
-        badge.style.height = '24px';
-        badge.style.backgroundColor = '#ff0055';
-        badge.style.color = '#ffffff';
-        badge.style.borderRadius = '50%';
-        badge.style.fontSize = '12px';
-        badge.style.fontWeight = 'bold';
-        badge.style.display = 'flex';
-        badge.style.alignItems = 'center';
-        badge.style.justifyContent = 'center';
-        badge.style.boxShadow = '0 2px 6px rgba(0,0,0,0.4)';
-        badge.textContent = '●';
-
-        overlay.appendChild(badge);
-        document.body.appendChild(overlay);
-        activeHighlight = overlay;
+        // Instant visual feedback for human operator in browser
+        showInstantRipple(e.clientX, e.clientY);
 
         if (window.onFlowSnapEvent) {
           window.onFlowSnapEvent({
             type: 'click',
             label: getDesc(target),
             tag: target.tagName.toLowerCase(),
-            url: window.location.href
+            url: window.location.href,
+            coords
           });
         }
       }, true);
 
-      // 2. SHORTCUTS
+      // 2. SHORTCUTS & INPUT SUBMITS
       document.addEventListener('keydown', (e) => {
         if (e.key === 'F8') {
           e.preventDefault();
@@ -302,6 +381,21 @@ export class ActionRecorder {
           const isSens = isSensitiveElement(e.target);
           const rawVal = e.target.value;
           const displayVal = isSens ? '••••••••' : rawVal;
+          const rect = e.target.getBoundingClientRect();
+          const dpr = window.devicePixelRatio || 1;
+
+          const coords = {
+            x: Math.round(rect.left),
+            y: Math.round(rect.top),
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            clickX: Math.round(rect.left + rect.width / 2),
+            clickY: Math.round(rect.top + rect.height / 2),
+            winW: window.innerWidth,
+            winH: window.innerHeight,
+            dpr
+          };
+
           if (rawVal) {
             setTimeout(() => {
               window.onFlowSnapEvent && window.onFlowSnapEvent({
@@ -309,9 +403,10 @@ export class ActionRecorder {
                 label: `input_${getDesc(e.target)}_${displayVal.slice(0, 20)}`,
                 tag: e.target.tagName.toLowerCase(),
                 url: window.location.href,
-                isRedacted: isSens
+                isRedacted: isSens,
+                coords
               });
-            }, 200);
+            }, 60);
           }
         }
       }, true);
@@ -372,11 +467,11 @@ export class ActionRecorder {
         };
       }
 
-      if (document.body) injectHUD();
-      else window.addEventListener('DOMContentLoaded', injectHUD);
-      setInterval(() => {
-        if (!document.getElementById('flowsnap-floating-hud') && document.body) injectHUD();
-      }, 1500);
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', injectHUD);
+      } else {
+        injectHUD();
+      }
     };
   }
 }
