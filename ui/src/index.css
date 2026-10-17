@@ -65,6 +65,18 @@ html.light header.bg-zinc-950 {
   border-color: #2a303c !important;
 }
 
+/* Primary Dark Buttons: Always crisp dark background with pure white text in both themes */
+.app-btn-dark {
+  background-color: #11141a !important;
+  color: #ffffff !important;
+  border-color: #11141a !important;
+}
+
+.app-btn-dark:hover {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
 /* Light Mode Borders */
 html.light .border-zinc-800,
 html.light .border-zinc-850,
@@ -180,21 +192,16 @@ html.light kbd {
 }
 
 /* Light Mode Secondary Surfaces & Neutral Tones */
-html.light .bg-zinc-900,
 html.light .bg-zinc-900\/40,
 html.light .bg-zinc-900\/50,
 html.light .bg-zinc-900\/60,
 html.light .bg-zinc-900\/80,
-html.light .bg-zinc-850,
-html.light .bg-zinc-800 {
+html.light .bg-zinc-850 {
   background-color: #f1f3f7;
 }
 
-html.light .hover\:bg-zinc-900:hover,
 html.light .hover\:bg-zinc-900\/40:hover,
-html.light .hover\:bg-zinc-850:hover,
-html.light .hover\:bg-zinc-800:hover,
-html.light .hover\:bg-zinc-700:hover {
+html.light .hover\:bg-zinc-850:hover {
   background-color: #e4e7ed;
 }
 
@@ -211,4 +218,5 @@ html.light .bg-emerald-950\/20,
 html.light .bg-emerald-950\/80 {
   background-color: #ecfdf5;
 }
+
 

@@ -1201,16 +1201,16 @@ export default function App() {
                                 className={`px-2.5 py-1 border text-[11px] font-semibold flex items-center gap-1.5 transition rounded-xs ${
                                   isExpanded
                                     ? (theme === 'dark'
-                                        ? 'border-zinc-500 bg-zinc-800 text-white'
-                                        : 'border-zinc-900 bg-zinc-900 text-white')
+                                        ? 'border-zinc-500 bg-zinc-800 text-white hover:bg-zinc-700'
+                                        : 'app-btn-dark shadow-sm')
                                     : (theme === 'dark'
                                         ? 'border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300'
                                         : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 shadow-xs')
                                 }`}
                                 title="Browse all captured screenshots for this SOP"
                               >
-                                <Camera className="w-3.5 h-3.5 text-zinc-400" />
-                                {isExpanded ? 'TUTUP_SCREENSHOTS' : `BROWSE_SCREENSHOTS (${totalSteps})`}
+                                <Camera className="w-3.5 h-3.5 text-current" />
+                                <span>{isExpanded ? 'TUTUP_SCREENSHOTS' : `BROWSE_SCREENSHOTS (${totalSteps})`}</span>
                               </button>
                             )}
 
@@ -1243,14 +1243,15 @@ export default function App() {
                               href={`/recordings/${rec.id}/index.html`}
                               target="_blank"
                               rel="noreferrer"
-                              className={`px-2.5 py-1 font-semibold text-[11px] flex items-center gap-1 transition rounded-xs ${
+                              className={`px-2.5 py-1 font-semibold text-[11px] flex items-center gap-1.5 transition rounded-xs ${
                                 theme === 'dark'
-                                  ? 'bg-zinc-100 hover:bg-white text-black'
-                                  : 'bg-zinc-900 hover:bg-zinc-800 text-white shadow-xs'
+                                  ? 'border border-zinc-300 bg-zinc-100 hover:bg-white text-black'
+                                  : 'app-btn-dark shadow-sm'
                               }`}
+                              title="Buka dokumen HTML di tab browser baru"
                             >
-                              <ExternalLink className="w-3 h-3" />
-                              NEW_TAB
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>NEW_TAB</span>
                             </a>
                           </div>
                         </div>
@@ -1266,7 +1267,11 @@ export default function App() {
                                   setBrowsingStepIndex((prev) => ({ ...prev, [rec.id]: sIdx }));
                                   setExpandedBrowseId(rec.id);
                                 }}
-                                className="group relative cursor-pointer border border-zinc-850 hover:border-zinc-500 bg-black w-24 h-14 flex-shrink-0 overflow-hidden transition"
+                                className={`group relative cursor-pointer border w-24 h-14 flex-shrink-0 overflow-hidden transition ${
+                                  theme === 'dark'
+                                    ? 'border-zinc-850 hover:border-zinc-500 bg-black'
+                                    : 'border-zinc-300 hover:border-zinc-500 bg-zinc-100 shadow-2xs'
+                                }`}
                                 title={`Step ${st.step}: ${st.label || st.type}`}
                               >
                                 <img
@@ -1286,7 +1291,11 @@ export default function App() {
                                   setBrowsingStepIndex((prev) => ({ ...prev, [rec.id]: 0 }));
                                   setExpandedBrowseId(rec.id);
                                 }}
-                                className="text-[10px] text-zinc-500 hover:text-zinc-300 font-mono px-2 py-1 border border-dashed border-zinc-800 hover:border-zinc-600 flex-shrink-0"
+                                className={`text-[10px] font-mono px-2 py-1 border border-dashed flex-shrink-0 transition ${
+                                  theme === 'dark'
+                                    ? 'text-zinc-500 hover:text-zinc-300 border-zinc-800 hover:border-zinc-600'
+                                    : 'text-zinc-600 hover:text-zinc-900 border-zinc-300 hover:border-zinc-500 bg-zinc-50'
+                                }`}
                               >
                                 +{rec.steps.length - 5} MORE...
                               </button>
@@ -1296,14 +1305,22 @@ export default function App() {
 
                         {/* Expanded Screenshot Browser */}
                         {isExpanded && currentStep && (
-                          <div className="border-t border-zinc-800 bg-black/60 p-4 space-y-4 animate-in fade-in duration-150">
+                          <div className={`border-t p-4 space-y-4 animate-in fade-in duration-150 transition ${
+                            theme === 'dark' ? 'border-zinc-800 bg-black/60' : 'border-zinc-200 bg-zinc-50/70'
+                          }`}>
                             {/* Step navigation & meta bar */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+                            <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3 transition ${
+                              theme === 'dark' ? 'border-zinc-800' : 'border-zinc-200'
+                            }`}>
                               <div className="flex items-center gap-2">
-                                <span className="px-2 py-0.5 bg-zinc-800 text-zinc-200 text-[11px] font-mono font-bold">
+                                <span className={`px-2 py-0.5 text-[11px] font-mono font-bold rounded-xs border ${
+                                  theme === 'dark'
+                                    ? 'bg-zinc-800 border-zinc-700 text-zinc-200'
+                                    : 'bg-zinc-200/80 border-zinc-300 text-zinc-900 shadow-2xs'
+                                }`}>
                                   STEP {String(currentStep.step).padStart(2, '0')} OF {String(rec.steps.length).padStart(2, '0')}
                                 </span>
-                                <span className="text-xs font-semibold text-zinc-200">
+                                <span className={`text-xs font-semibold ${theme === 'dark' ? 'text-zinc-200' : 'text-zinc-900'}`}>
                                   [{currentStep.type?.toUpperCase()}] {currentStep.label || 'Action'}
                                 </span>
                                 {currentStep.tag && (
@@ -1322,7 +1339,11 @@ export default function App() {
                                       [rec.id]: Math.max(0, currentStepIdx - 1)
                                     }))
                                   }
-                                  className="px-2.5 py-1 border border-zinc-800 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed text-zinc-300 text-[11px] flex items-center gap-1 font-mono transition"
+                                  className={`px-2.5 py-1 border disabled:opacity-30 disabled:cursor-not-allowed text-[11px] flex items-center gap-1 font-mono transition rounded-xs ${
+                                    theme === 'dark'
+                                      ? 'border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white'
+                                      : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 shadow-xs'
+                                  }`}
                                 >
                                   <ChevronLeft className="w-3.5 h-3.5" />
                                   PREV
@@ -1335,14 +1356,22 @@ export default function App() {
                                       [rec.id]: Math.min(rec.steps.length - 1, currentStepIdx + 1)
                                     }))
                                   }
-                                  className="px-2.5 py-1 border border-zinc-800 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed text-zinc-300 text-[11px] flex items-center gap-1 font-mono transition"
+                                  className={`px-2.5 py-1 border disabled:opacity-30 disabled:cursor-not-allowed text-[11px] flex items-center gap-1 font-mono transition rounded-xs ${
+                                    theme === 'dark'
+                                      ? 'border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white'
+                                      : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 shadow-xs'
+                                  }`}
                                 >
                                   NEXT
                                   <ChevronRight className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => openInFileManager(rec.id)}
-                                  className="px-2 py-1 border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white text-[11px] flex items-center gap-1 font-mono transition"
+                                  className={`px-2.5 py-1 border text-[11px] flex items-center gap-1 font-mono transition rounded-xs ${
+                                    theme === 'dark'
+                                      ? 'border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white'
+                                      : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 shadow-xs'
+                                  }`}
                                   title="Buka folder direktori rekaman ini di OS File Manager (Finder / Nautilus)"
                                 >
                                   <Folder className="w-3.5 h-3.5 text-zinc-400" />
@@ -1350,48 +1379,68 @@ export default function App() {
                                 </button>
                                 <button
                                   onClick={() => setExpandedBrowseId(null)}
-                                  className="px-2 py-1 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-white text-[11px] font-mono transition"
-                                  title="Close browser"
+                                  className={`px-2.5 py-1 border text-[11px] font-mono flex items-center gap-1 transition rounded-xs ${
+                                    theme === 'dark'
+                                      ? 'border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                                      : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-700 hover:text-zinc-950 shadow-xs'
+                                  }`}
+                                  title="Tutup screenshot browser"
                                 >
                                   <X className="w-3.5 h-3.5" />
+                                  <span>TUTUP</span>
                                 </button>
                               </div>
                             </div>
 
                             {/* Step URL */}
                             <div className="text-[10px] text-zinc-500 font-mono truncate">
-                              URL: <span className="text-zinc-400">{currentStep.url}</span>
+                              URL: <span className={theme === 'dark' ? 'text-zinc-400' : 'text-zinc-700'}>{currentStep.url}</span>
                             </div>
 
                             {/* Dual Shot Display: Action Highlight & Result Screen */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                               {/* Action Shot */}
-                              <div className="border border-zinc-800 bg-zinc-950 p-3 space-y-2">
-                                <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                              <div className={`border p-3 space-y-2 transition ${
+                                theme === 'dark' ? 'border-zinc-800 bg-zinc-950' : 'border-zinc-200 bg-white shadow-xs'
+                              }`}>
+                                <div className="flex items-center justify-between text-[11px] font-mono">
                                   <div className="flex items-center gap-1.5">
                                     <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
-                                    <span className="font-bold text-zinc-200">ACTION_HIGHLIGHT (RED BOX)</span>
+                                    <span className={`font-bold ${theme === 'dark' ? 'text-zinc-200' : 'text-zinc-800'}`}>
+                                      ACTION_HIGHLIGHT (RED BOX)
+                                    </span>
                                   </div>
                                   <button
                                     onClick={() => setLightboxImg(`/recordings/${rec.id}/${currentStep.actionFile}`)}
-                                    className="hover:text-white flex items-center gap-1 text-[10px]"
-                                    title="Fullscreen zoom"
+                                    className={`flex items-center gap-1 text-[10px] font-mono transition px-2 py-0.5 border rounded-xs ${
+                                      theme === 'dark'
+                                        ? 'text-zinc-400 hover:text-white border-zinc-800 hover:border-zinc-700 bg-zinc-900/60'
+                                        : 'text-zinc-700 hover:text-zinc-950 border-zinc-300 hover:bg-zinc-100 bg-white shadow-2xs'
+                                    }`}
+                                    title="Perbesar gambar"
                                   >
                                     <Maximize2 className="w-3 h-3" />
-                                    ZOOM
+                                    <span>ZOOM</span>
                                   </button>
                                 </div>
                                 <div
-                                  className="relative cursor-zoom-in bg-black border border-zinc-850 overflow-hidden group"
+                                  className={`relative cursor-zoom-in border overflow-hidden group transition ${
+                                    theme === 'dark' ? 'bg-black border-zinc-850' : 'bg-zinc-100 border-zinc-200'
+                                  }`}
                                   onClick={() => setLightboxImg(`/recordings/${rec.id}/${currentStep.actionFile}`)}
                                 >
                                   <img
                                     src={`/recordings/${rec.id}/${currentStep.actionFile}`}
                                     alt={`Action Step ${currentStep.step}`}
-                                    className="w-full h-auto max-h-[380px] object-contain mx-auto transition group-hover:opacity-95"
+                                    className="w-full h-auto max-h-[380px] object-contain mx-auto transition group-hover:scale-[1.01]"
                                   />
-                                  <div className="absolute bottom-2 right-2 bg-black/80 text-[10px] text-zinc-400 px-1.5 py-0.5 border border-zinc-800 font-mono">
-                                    KLIK UNTUK FULLSCREEN
+                                  <div className={`absolute bottom-2 right-2 text-[10px] px-2 py-0.5 border font-mono transition flex items-center gap-1.5 shadow-sm rounded-xs ${
+                                    theme === 'dark'
+                                      ? 'bg-black/85 text-zinc-300 border-zinc-700'
+                                      : 'bg-white/95 text-zinc-800 border-zinc-300 backdrop-blur-xs font-semibold'
+                                  }`}>
+                                    <Maximize2 className="w-3 h-3 text-current" />
+                                    <span>KLIK UNTUK MEMPERBESAR</span>
                                   </div>
                                 </div>
                                 <div className="text-[10px] text-zinc-500 font-mono truncate">
@@ -1400,39 +1449,54 @@ export default function App() {
                               </div>
 
                               {/* Result Shot */}
-                              <div className="border border-zinc-800 bg-zinc-950 p-3 space-y-2">
-                                <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                              <div className={`border p-3 space-y-2 transition ${
+                                theme === 'dark' ? 'border-zinc-800 bg-zinc-950' : 'border-zinc-200 bg-white shadow-xs'
+                              }`}>
+                                <div className="flex items-center justify-between text-[11px] font-mono">
                                   <div className="flex items-center gap-1.5">
                                     <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
-                                    <span className="font-bold text-zinc-200">RESULT_STATE (AFTER ACTION)</span>
+                                    <span className={`font-bold ${theme === 'dark' ? 'text-zinc-200' : 'text-zinc-800'}`}>
+                                      RESULT_STATE (AFTER ACTION)
+                                    </span>
                                   </div>
                                   {currentStep.resultFile && (
                                     <button
                                       onClick={() => setLightboxImg(`/recordings/${rec.id}/${currentStep.resultFile}`)}
-                                      className="hover:text-white flex items-center gap-1 text-[10px]"
-                                      title="Fullscreen zoom"
+                                      className={`flex items-center gap-1 text-[10px] font-mono transition px-2 py-0.5 border rounded-xs ${
+                                        theme === 'dark'
+                                          ? 'text-zinc-400 hover:text-white border-zinc-800 hover:border-zinc-700 bg-zinc-900/60'
+                                          : 'text-zinc-700 hover:text-zinc-950 border-zinc-300 hover:bg-zinc-100 bg-white shadow-2xs'
+                                      }`}
+                                      title="Perbesar gambar"
                                     >
                                       <Maximize2 className="w-3 h-3" />
-                                      ZOOM
+                                      <span>ZOOM</span>
                                     </button>
                                   )}
                                 </div>
                                 {currentStep.resultFile ? (
                                   <div
-                                    className="relative cursor-zoom-in bg-black border border-zinc-850 overflow-hidden group"
+                                    className={`relative cursor-zoom-in border overflow-hidden group transition ${
+                                      theme === 'dark' ? 'bg-black border-zinc-850' : 'bg-zinc-100 border-zinc-200'
+                                    }`}
                                     onClick={() => setLightboxImg(`/recordings/${rec.id}/${currentStep.resultFile}`)}
                                   >
                                     <img
                                       src={`/recordings/${rec.id}/${currentStep.resultFile}`}
                                       alt={`Result Step ${currentStep.step}`}
-                                      className="w-full h-auto max-h-[380px] object-contain mx-auto transition group-hover:opacity-95"
+                                      className="w-full h-auto max-h-[380px] object-contain mx-auto transition group-hover:scale-[1.01]"
                                     />
-                                    <div className="absolute bottom-2 right-2 bg-black/80 text-[10px] text-zinc-400 px-1.5 py-0.5 border border-zinc-800 font-mono">
-                                      KLIK UNTUK FULLSCREEN
+                                    <div className={`absolute bottom-2 right-2 text-[10px] px-2 py-0.5 border font-mono transition flex items-center gap-1.5 shadow-sm rounded-xs ${
+                                      theme === 'dark'
+                                        ? 'bg-black/85 text-zinc-300 border-zinc-700'
+                                        : 'bg-white/95 text-zinc-800 border-zinc-300 backdrop-blur-xs font-semibold'
+                                    }`}>
+                                      <Maximize2 className="w-3 h-3 text-current" />
+                                      <span>KLIK UNTUK MEMPERBESAR</span>
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="h-[280px] border border-dashed border-zinc-850 flex items-center justify-center text-zinc-600 font-mono text-xs">
+                                  <div className="h-[280px] border border-dashed border-zinc-300 dark:border-zinc-850 flex items-center justify-center text-zinc-500 font-mono text-xs">
                                     TIDAK ADA FOTO HASIL (AUTO-RESULT DISABLED)
                                   </div>
                                 )}
@@ -1448,7 +1512,9 @@ export default function App() {
                                 <span>FILMSTRIP ({rec.steps.length} STEPS):</span>
                                 <span>KLIK LANGKAH UNTUK NAVIGASI CEPAT</span>
                               </div>
-                              <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1 border border-zinc-850 bg-black/40 p-2">
+                              <div className={`flex items-center gap-2 overflow-x-auto pb-2 pt-1 border p-2 transition ${
+                                theme === 'dark' ? 'border-zinc-850 bg-black/40' : 'border-zinc-200 bg-white shadow-inner'
+                              }`}>
                                 {rec.steps.map((st, idx) => {
                                   const isCur = idx === currentStepIdx;
                                   return (
@@ -1457,13 +1523,17 @@ export default function App() {
                                       onClick={() =>
                                         setBrowsingStepIndex((prev) => ({ ...prev, [rec.id]: idx }))
                                       }
-                                      className={`flex-shrink-0 text-left border transition p-1 ${
+                                      className={`flex-shrink-0 text-left border transition p-1 rounded-xs ${
                                         isCur
-                                          ? 'border-zinc-300 bg-zinc-800'
-                                          : 'border-zinc-800 hover:border-zinc-600 bg-zinc-950'
+                                          ? (theme === 'dark'
+                                              ? 'border-zinc-400 bg-zinc-800 ring-1 ring-zinc-400'
+                                              : 'border-zinc-900 bg-zinc-100 ring-1 ring-zinc-900 shadow-xs')
+                                          : (theme === 'dark'
+                                              ? 'border-zinc-800 hover:border-zinc-600 bg-zinc-950'
+                                              : 'border-zinc-200 hover:border-zinc-400 bg-zinc-50')
                                       }`}
                                     >
-                                      <div className="w-24 h-14 bg-black overflow-hidden mb-1 relative">
+                                      <div className="w-24 h-14 bg-black overflow-hidden mb-1 relative rounded-xs">
                                         <img
                                           src={`/recordings/${rec.id}/${st.actionFile}`}
                                           alt={`Step ${st.step}`}
@@ -1474,7 +1544,9 @@ export default function App() {
                                           #{String(st.step).padStart(2, '0')}
                                         </div>
                                       </div>
-                                      <div className="w-24 text-[10px] font-mono text-zinc-300 truncate">
+                                      <div className={`w-24 text-[10px] font-mono truncate ${
+                                        theme === 'dark' ? 'text-zinc-300' : 'text-zinc-800 font-medium'
+                                      }`}>
                                         {st.label || st.type}
                                       </div>
                                     </button>
@@ -1980,18 +2052,25 @@ export default function App() {
       {/* STEP PREVIEW DRAWER / MODAL (FOR INDIVIDUAL CLICKED STEP)       */}
       {/* ============================================================== */}
       {activePreviewStep && liveSession?.folder && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="border border-zinc-700 bg-zinc-950 w-full max-w-3xl p-4 space-y-3">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="border border-zinc-700 bg-zinc-950 w-full max-w-3xl p-4 space-y-3 shadow-2xl">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-zinc-100">
                   INSPEKSI LANGKAH #{activePreviewStep.step} - {activePreviewStep.label}
                 </span>
-                <span className="text-[10px] px-1.5 py-0.5 border border-zinc-800 bg-zinc-900 text-zinc-300">
+                <span className={`text-[10px] px-1.5 py-0.5 border font-medium ${
+                  theme === 'dark' ? 'border-zinc-800 bg-zinc-900 text-zinc-300' : 'border-zinc-300 bg-zinc-100 text-zinc-800'
+                }`}>
                   {activePreviewStep.type}
                 </span>
               </div>
-              <button onClick={() => setActivePreviewStep(null)} className="text-zinc-400 hover:text-white">
+              <button
+                onClick={() => setActivePreviewStep(null)}
+                className={`p-1 transition rounded-xs ${
+                  theme === 'dark' ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-zinc-950'
+                }`}
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -2016,7 +2095,7 @@ export default function App() {
                     onClick={() => setLightboxImg(`/recordings/${liveSession.folder}/${activePreviewStep.resultFile}`)}
                   />
                 ) : (
-                  <div className="h-40 border border-zinc-850 flex items-center justify-center text-zinc-600">
+                  <div className="h-40 border border-zinc-850 flex items-center justify-center text-zinc-600 text-xs font-mono">
                     Tidak ada foto hasil
                   </div>
                 )}
@@ -2025,7 +2104,7 @@ export default function App() {
 
             <div className="text-[10px] text-zinc-500 font-mono pt-2 border-t border-zinc-850 flex justify-between">
               <span>URL: {activePreviewStep.url}</span>
-              <span>WAKTU: {activePreviewStep.timestamp}</span>
+              <span>WAKTU: {activePreviewStep.timestamp ? new Date(activePreviewStep.timestamp).toLocaleTimeString('id-ID') : 'N/A'}</span>
             </div>
           </div>
         </div>
@@ -2037,13 +2116,44 @@ export default function App() {
       {lightboxImg && (
         <div
           onClick={() => setLightboxImg(null)}
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xs flex flex-col items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-150"
         >
-          <img
-            src={lightboxImg}
-            alt="Zoomed"
-            className="max-w-full max-h-[92vh] border border-zinc-700 shadow-2xl object-contain"
-          />
+          {/* Lightbox Controls Bar */}
+          <div
+            className="w-full max-w-5xl flex items-center justify-between pb-3 text-zinc-300 text-xs font-mono select-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 border border-zinc-700 bg-zinc-900 text-zinc-200 text-[11px] font-bold">
+                FULLSCREEN_ZOOM
+              </span>
+              <span className="text-zinc-400 text-[11px] truncate max-w-md">
+                {lightboxImg.split('/').pop()}
+              </span>
+            </div>
+            <button
+              onClick={() => setLightboxImg(null)}
+              className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-600 flex items-center gap-1.5 text-xs font-mono transition rounded-xs shadow-md"
+            >
+              <X className="w-3.5 h-3.5" />
+              TUTUP (ESC / KLIK)
+            </button>
+          </div>
+
+          <div
+            className="relative flex items-center justify-center max-w-full max-h-[86vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightboxImg}
+              alt="Zoomed"
+              className="max-w-full max-h-[86vh] border border-zinc-700 shadow-2xl object-contain bg-black"
+            />
+          </div>
+
+          <div className="text-[10px] text-zinc-400 font-mono pt-3">
+            Klik area di luar gambar atau tekan tombol TUTUP untuk kembali
+          </div>
         </div>
       )}
     </div>
