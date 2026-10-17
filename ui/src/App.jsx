@@ -31,11 +31,26 @@ import {
   Activity,
   Edit3,
   Save,
-  HardDrive
+  HardDrive,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export default function App() {
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('flowsnap_theme') || 'dark';
+  });
+
   const [activeTab, setActiveTab] = useState('recorder'); // 'recorder' | 'library' | 'settings'
+
+  useEffect(() => {
+    document.documentElement.className = theme;
+    localStorage.setItem('flowsnap_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // Recording Configuration
   const [targetUrl, setTargetUrl] = useState('https://demo.odoo.com');
@@ -381,6 +396,25 @@ export default function App() {
             <Shield className="w-3 h-3 text-zinc-500" />
             REDACT: 10PX
           </span>
+
+          {/* Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            className="px-2.5 py-0.5 border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 flex items-center gap-1.5 transition text-[11px] font-bold"
+            title={`Ganti tema tampilan (saat ini: ${theme.toUpperCase()})`}
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun className="w-3 h-3 text-amber-400" />
+                <span>LIGHT</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-3 h-3 text-indigo-400" />
+                <span>DARK</span>
+              </>
+            )}
+          </button>
         </div>
       </header>
 
@@ -1301,6 +1335,47 @@ export default function App() {
         {/* ============================================================== */}
         {activeTab === 'settings' && (
           <div className="max-w-2xl space-y-6">
+            {/* Theme Selector */}
+            <div className="border border-zinc-800 bg-zinc-950 p-5 space-y-4">
+              <div className="font-bold text-zinc-100 border-b border-zinc-800 pb-2 flex items-center justify-between">
+                <span>INTERFACE_THEME</span>
+                <span className="text-[10px] text-zinc-500 font-mono uppercase">ACTIVE: {theme}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <button
+                  onClick={() => setTheme('dark')}
+                  className={`p-3 border text-left flex items-center justify-between transition ${
+                    theme === 'dark'
+                      ? 'border-zinc-300 bg-zinc-800 text-white font-bold'
+                      : 'border-zinc-800 hover:border-zinc-700 bg-black text-zinc-400'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Moon className="w-4 h-4 text-indigo-400" />
+                    <span>DARK MONO</span>
+                  </div>
+                  {theme === 'dark' && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                </button>
+                <button
+                  onClick={() => setTheme('light')}
+                  className={`p-3 border text-left flex items-center justify-between transition ${
+                    theme === 'light'
+                      ? 'border-zinc-500 bg-zinc-200 text-black font-bold'
+                      : 'border-zinc-800 hover:border-zinc-700 bg-black text-zinc-400'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Sun className="w-4 h-4 text-amber-500" />
+                    <span>LIGHT MONO</span>
+                  </div>
+                  {theme === 'light' && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                </button>
+              </div>
+              <p className="text-zinc-500 text-[11px]">
+                Desain tema menggunakan prinsip brutalist monochrome berkontras tinggi tanpa gradien dekoratif. Pilihan tema otomatis disimpan di browser local storage.
+              </p>
+            </div>
+
             <div className="border border-zinc-800 bg-zinc-950 p-5 space-y-4">
               <div className="font-bold text-zinc-100 border-b border-zinc-800 pb-2">
                 SAVED_INSTANCE_PROFILES

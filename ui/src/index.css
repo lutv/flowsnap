@@ -1,7 +1,218 @@
 @import "tailwindcss";
 
-@layer base {
-  body {
-    @apply bg-slate-950 text-slate-100 font-sans;
-  }
+/* Base Reset & Smooth Theme Transitions */
+html {
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+html.dark {
+  color-scheme: dark;
+  background-color: #000000;
+  color: #e4e4e7;
+}
+
+html.light {
+  color-scheme: light;
+  background-color: #f8fafc;
+  color: #09090b;
+}
+
+body {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* ============================================================== */
+/* LIGHT THEME MONOCHROME BRUTALIST OVERRIDES                     */
+/* ============================================================== */
+
+html.light body,
+html.light .min-h-screen {
+  background-color: #f8fafc !important;
+  color: #09090b !important;
+}
+
+/* Backgrounds */
+html.light .bg-black {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-zinc-950 {
+  background-color: #f1f5f9 !important;
+}
+
+html.light .bg-zinc-900,
+html.light .bg-zinc-900\/60,
+html.light .bg-zinc-900\/50,
+html.light .bg-zinc-900\/40 {
+  background-color: #e2e8f0 !important;
+}
+
+html.light .bg-zinc-800 {
+  background-color: #cbd5e1 !important;
+}
+
+html.light .bg-zinc-850 {
+  background-color: #e2e8f0 !important;
+}
+
+html.light .bg-black\/60,
+html.light .bg-black\/80,
+html.light .bg-black\/40 {
+  background-color: rgba(241, 245, 249, 0.95) !important;
+}
+
+/* Borders */
+html.light .border-zinc-800,
+html.light .border-zinc-850,
+html.light .border-zinc-700,
+html.light .border-zinc-750,
+html.light .border-zinc-900 {
+  border-color: #cbd5e1 !important;
+}
+
+html.light .border-zinc-800\/80 {
+  border-color: #cbd5e1 !important;
+}
+
+html.light .divide-zinc-800,
+html.light .divide-zinc-850,
+html.light .divide-zinc-900 {
+  border-color: #e2e8f0 !important;
+}
+
+/* Texts */
+html.light .text-zinc-100,
+html.light .text-zinc-200 {
+  color: #0f172a !important;
+}
+
+html.light .text-zinc-300 {
+  color: #1e293b !important;
+}
+
+html.light .text-zinc-400 {
+  color: #475569 !important;
+}
+
+html.light .text-zinc-500 {
+  color: #64748b !important;
+}
+
+html.light .text-zinc-600 {
+  color: #94a3b8 !important;
+}
+
+html.light .text-zinc-700 {
+  color: #cbd5e1 !important;
+}
+
+/* Hovers */
+html.light .hover\:bg-zinc-900:hover,
+html.light .hover\:bg-zinc-900\/40:hover,
+html.light .hover\:bg-zinc-800:hover,
+html.light .hover\:bg-zinc-850:hover,
+html.light .hover\:bg-zinc-700:hover {
+  background-color: #e2e8f0 !important;
+}
+
+html.light .hover\:text-white:hover,
+html.light .hover\:text-zinc-200:hover {
+  color: #000000 !important;
+}
+
+html.light .hover\:border-zinc-500:hover,
+html.light .hover\:border-zinc-600:hover,
+html.light .hover\:border-zinc-700:hover {
+  border-color: #64748b !important;
+}
+
+/* Form Controls */
+html.light input[type="text"],
+html.light input[type="url"],
+html.light select,
+html.light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.light input:focus,
+html.light select:focus,
+html.light textarea:focus {
+  border-color: #0f172a !important;
+}
+
+/* Semantics in Light Mode */
+html.light .bg-emerald-950\/40,
+html.light .bg-emerald-900 {
+  background-color: #ecfdf5 !important;
+  color: #065f46 !important;
+  border-color: #a7f3d0 !important;
+}
+
+html.light .text-emerald-300,
+html.light .text-emerald-400 {
+  color: #047857 !important;
+}
+
+html.light .border-emerald-800,
+html.light .border-emerald-900\/60,
+html.light .border-emerald-600 {
+  border-color: #6ee7b7 !important;
+}
+
+html.light .bg-red-950\/30 {
+  background-color: #fef2f2 !important;
+  color: #991b1b !important;
+  border-color: #fecaca !important;
+}
+
+html.light .text-red-300,
+html.light .text-red-400 {
+  color: #b91c1c !important;
+}
+
+html.light .border-red-800 {
+  border-color: #fca5a5 !important;
+}
+
+html.light .bg-amber-950\/40 {
+  background-color: #fffbeb !important;
+  color: #92400e !important;
+  border-color: #fde68a !important;
+}
+
+html.light .text-amber-400 {
+  color: #b45309 !important;
+}
+
+html.light .border-amber-800 {
+  border-color: #fcd34d !important;
+}
+
+/* Inverted Action Buttons */
+html.light .bg-zinc-100 {
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+}
+
+html.light .hover\:bg-white:hover {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+/* Modal Backdrops & Overlays */
+html.light .fixed.inset-0.bg-black\/80 {
+  background-color: rgba(15, 23, 42, 0.65) !important;
+}
+
+html.light kbd {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
 }
