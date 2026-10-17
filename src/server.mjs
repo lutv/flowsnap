@@ -427,11 +427,20 @@ export function createFlowSnapServer(options = {}) {
     // 9. Recordings Explorer & Detail
     if (pathname === '/api/recordings' && req.method === 'GET') {
       const list = [];
-      if (fs.existsSync(recDir)) {
-        const dirs = fs.readdirSync(recDir, { withFileTypes: true });
+      const seen = new Set();
+      const searchDirs = [
+        path.join(dataDir, 'recordings'),
+        path.join(rootDir, 'recordings'),
+        path.join(os.homedir(), 'flowsnap', 'recordings')
+      ];
+
+      for (const searchDir of searchDirs) {
+        if (!fs.existsSync(searchDir)) continue;
+        const dirs = fs.readdirSync(searchDir, { withFileTypes: true });
         for (const d of dirs) {
-          if (d.isDirectory()) {
-            const dirPath = path.join(recDir, d.name);
+          if (d.isDirectory() && !seen.has(d.name)) {
+            seen.add(d.name);
+            const dirPath = path.join(searchDir, d.name);
             const stepJson = path.join(dirPath, 'steps.json');
             const guideMd = path.join(dirPath, 'GUIDE.md');
             const guideHtml = path.join(dirPath, 'index.html');
@@ -461,15 +470,22 @@ export function createFlowSnapServer(options = {}) {
           }
         }
       }
+
+      list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
       res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ recordings: list.reverse() }));
+      res.end(JSON.stringify({ recordings: list }));
       return;
     }
 
     if (pathname.startsWith('/api/recording/') && req.method === 'GET') {
       const folderName = pathname.replace('/api/recording/', '');
-      const dirPath = path.join(recDir, folderName);
-      if (!fs.existsSync(dirPath)) {
+      const searchDirs = [
+        path.join(dataDir, 'recordings', folderName),
+        path.join(rootDir, 'recordings', folderName),
+        path.join(os.homedir(), 'flowsnap', 'recordings', folderName)
+      ];
+      const dirPath = searchDirs.find(d => fs.existsSync(d));
+      if (!dirPath) {
         res.statusCode = 404;
         res.end(JSON.stringify({ error: 'Folder rekaman tidak ditemukan' }));
         return;
@@ -523,17 +539,31 @@ export function createFlowSnapServer(options = {}) {
 
     // 10. Open Folder in Native Explorer
     if (pathname === '/api/open-folder' && req.method === 'GET') {
-      const folder = parsedUrl.searchParams.get('folder') || '';
-      let targetPath = dataDir;
+      const folder = (parsedUrl.searchParams.get('folder') || '').trim();
+      let targetPath = recDir;
+
       if (folder) {
-        targetPath = path.isAbsolute(folder) ? folder : path.join(dataDir, folder);
+        if (path.isAbsolute(folder)) {
+          targetPath = folder;
+        } else {
+          const candidates = [
+            path.join(dataDir, 'recordings', folder),
+            path.join(rootDir, 'recordings', folder),
+            path.join(os.homedir(), 'flowsnap', 'recordings', folder),
+            path.join(dataDir, folder),
+            path.join(rootDir, folder)
+          ];
+          const found = candidates.find(c => fs.existsSync(c));
+          targetPath = found || path.join(recDir, folder);
+        }
       }
+
       try {
         if (!fs.existsSync(targetPath)) fs.mkdirSync(targetPath, { recursive: true });
         openFolderInExplorer(targetPath);
         logMessage('ACTION', `Opened folder in file explorer: ${targetPath}`);
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ success: true, openedPath: targetPath }));
+        res.end(JSON.stringify({ success: true, openedPath: targetPath, path: targetPath }));
       } catch (err) {
         logMessage('ERROR', `Failed to open folder: ${err.message}`);
         res.statusCode = 500;

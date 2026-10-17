@@ -74,8 +74,7 @@ export class BrowserManager {
 
   async navigateToTarget() {
     console.log(`Membuka URL target: \x1b[34m${this.url}\x1b[0m...`);
-    await this.page.goto(this.url).catch(() => {});
-    await this.page.waitForTimeout(1500);
+    await this.page.goto(this.url, { waitUntil: 'domcontentloaded', timeout: 45000 }).catch(() => {});
 
     // Odoo auto-login hook jika kredensial disediakan
     if (this.page.url().includes('/web/login') && this.login && this.password) {

@@ -492,19 +492,37 @@ export class ActionRecorder {
         };
       }
 
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', injectHUD);
-      } else {
-        injectHUD();
+      function ensureHUD() {
+        if (document.getElementById('flowsnap-floating-hud')) return;
+        if (document.body) {
+          injectHUD();
+        }
       }
 
-      // Keep HUD persistent across dynamic Single Page Application (SPA) DOM resets (e.g. Odoo OWL, React, Vue)
+      // 1. Try instantly
+      ensureHUD();
+
+      // 2. Watch for <body> creation immediately without waiting for DOMContentLoaded/assets
+      if (!document.getElementById('flowsnap-floating-hud')) {
+        const obs = new MutationObserver(() => {
+          if (document.body) {
+            injectHUD();
+            obs.disconnect();
+          }
+        });
+        if (document.documentElement) {
+          obs.observe(document.documentElement, { childList: true });
+        }
+        document.addEventListener('DOMContentLoaded', ensureHUD, { once: true });
+      }
+
+      // 3. Keep HUD persistent across dynamic Single Page Application (SPA) DOM resets
       if (!window.__flowSnapHudInterval) {
         window.__flowSnapHudInterval = setInterval(() => {
           if (!document.getElementById('flowsnap-floating-hud') && document.body) {
             injectHUD();
           }
-        }, 800);
+        }, 500);
       }
     };
   }
