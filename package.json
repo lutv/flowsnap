@@ -19,6 +19,7 @@
     "help": "node ./bin/flowsnap.mjs --help",
     "setup-agent": "node ./bin/flowsnap.mjs setup-agent",
     "test": "node scripts/validate.mjs",
+    "test:unit": "node --test test/config.test.mjs test/generator.test.mjs test/ai_enhancer.test.mjs test/mcp.test.mjs test/installer.test.mjs",
     "test:all": "node --test test/*.test.mjs",
     "test:preflight": "node -e \"import('./src/preflight.mjs').then(m => m.checkPlaywright())\"",
     "validate": "node scripts/validate.mjs"

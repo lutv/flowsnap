@@ -36,6 +36,7 @@ jobs:
         run: |
           npm ci
           npm --prefix ui ci
+          npx playwright install --with-deps chromium
 
       - name: Run test suite
         run: npm run test:all
