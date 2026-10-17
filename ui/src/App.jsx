@@ -327,23 +327,39 @@ export default function App() {
   return (
     <div className={`min-h-screen bg-black text-zinc-200 font-mono text-xs flex flex-col antialiased selection:bg-zinc-800 selection:text-white ${theme}`}>
       {/* Monospace Top Bar */}
-      <header className="border-b border-zinc-800 bg-zinc-950 px-5 py-3 flex items-center justify-between sticky top-0 z-40">
+      <header className={`border-b px-5 py-3 flex items-center justify-between sticky top-0 z-40 transition ${
+        theme === 'dark' ? 'border-zinc-800 bg-zinc-950' : 'border-zinc-200 bg-white shadow-xs'
+      }`}>
         <div className="flex items-center gap-3">
-          <div className="w-6 h-6 border border-zinc-700 bg-zinc-900 flex items-center justify-center font-bold text-white text-[11px]">
+          <div className="app-logo-badge w-6 h-6 border flex items-center justify-center font-bold text-[11px] rounded-xs shadow-xs">
             FS
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-bold text-zinc-100 tracking-tight text-sm">flowsnap</span>
-            <span className="text-[10px] text-zinc-500 border border-zinc-800 px-1.5 py-0.5 rounded">v1.0.0</span>
+            <span className={`font-bold tracking-tight text-sm ${theme === 'dark' ? 'text-zinc-100' : 'text-zinc-900'}`}>
+              flowsnap
+            </span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
+              theme === 'dark' ? 'text-zinc-500 border-zinc-800' : 'text-zinc-600 border-zinc-300 bg-zinc-50'
+            }`}>
+              v1.0.0
+            </span>
           </div>
         </div>
 
         {/* Tab Selector */}
-        <div className="flex items-center border border-zinc-800 bg-zinc-900/60 p-0.5">
+        <div className={`flex items-center p-0.5 rounded border transition ${
+          theme === 'dark' ? 'border-zinc-800 bg-zinc-900/60' : 'border-zinc-300 bg-zinc-200/80'
+        }`}>
           <button
             onClick={() => setActiveTab('recorder')}
-            className={`px-3 py-1 flex items-center gap-1.5 transition ${
-              activeTab === 'recorder' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
+            className={`px-3 py-1 flex items-center gap-1.5 transition text-[11px] rounded-xs ${
+              activeTab === 'recorder'
+                ? (theme === 'dark'
+                    ? 'bg-zinc-800 text-white font-bold shadow-xs'
+                    : 'bg-white text-zinc-900 font-bold shadow-xs border border-zinc-300')
+                : (theme === 'dark'
+                    ? 'text-zinc-400 hover:text-zinc-200'
+                    : 'text-zinc-600 hover:text-zinc-900')
             }`}
           >
             [1] RECORDER {isRecording && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping ml-1" />}
@@ -353,16 +369,28 @@ export default function App() {
               setActiveTab('library');
               loadRecordings();
             }}
-            className={`px-3 py-1 flex items-center gap-1.5 transition ${
-              activeTab === 'library' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
+            className={`px-3 py-1 flex items-center gap-1.5 transition text-[11px] rounded-xs ${
+              activeTab === 'library'
+                ? (theme === 'dark'
+                    ? 'bg-zinc-800 text-white font-bold shadow-xs'
+                    : 'bg-white text-zinc-900 font-bold shadow-xs border border-zinc-300')
+                : (theme === 'dark'
+                    ? 'text-zinc-400 hover:text-zinc-200'
+                    : 'text-zinc-600 hover:text-zinc-900')
             }`}
           >
             [2] LIBRARY ({recordings.length})
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`px-3 py-1 flex items-center gap-1.5 transition ${
-              activeTab === 'settings' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-zinc-200'
+            className={`px-3 py-1 flex items-center gap-1.5 transition text-[11px] rounded-xs ${
+              activeTab === 'settings'
+                ? (theme === 'dark'
+                    ? 'bg-zinc-800 text-white font-bold shadow-xs'
+                    : 'bg-white text-zinc-900 font-bold shadow-xs border border-zinc-300')
+                : (theme === 'dark'
+                    ? 'text-zinc-400 hover:text-zinc-200'
+                    : 'text-zinc-600 hover:text-zinc-900')
             }`}
           >
             [3] CONFIG
@@ -373,26 +401,38 @@ export default function App() {
         <div className="flex items-center gap-2.5 text-[11px]">
           {telemetry && (
             <span
-              className="text-zinc-300 border border-zinc-800 bg-zinc-900/60 px-2 py-0.5 flex items-center gap-1.5"
+              className={`border px-2 py-0.5 flex items-center gap-1.5 rounded-xs transition ${
+                theme === 'dark'
+                  ? 'text-zinc-300 border-zinc-800 bg-zinc-900/60'
+                  : 'text-zinc-800 border-zinc-300 bg-white shadow-xs'
+              }`}
               title="Resident Set Size (RAM) & V8 Heap Memory Usage"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              RAM: {telemetry.rssMb}MB <span className="text-zinc-500">[{telemetry.heapUsedMb}MB HEAP]</span>
+              RAM: {telemetry.rssMb}MB <span className={theme === 'dark' ? 'text-zinc-500' : 'text-zinc-500'}>[{telemetry.heapUsedMb}MB HEAP]</span>
             </span>
           )}
 
           {isRecording ? (
-            <span className="flex items-center gap-1.5 text-red-400 bg-red-950/40 border border-red-800 px-2 py-0.5">
+            <span className="flex items-center gap-1.5 text-red-400 bg-red-950/40 border border-red-800 px-2 py-0.5 rounded-xs">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
               REC_ACTIVE (PID:{processPid})
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-emerald-400 border border-zinc-800 px-2 py-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-xs border transition ${
+              theme === 'dark'
+                ? 'text-emerald-400 border-zinc-800'
+                : 'text-emerald-700 border-emerald-300 bg-emerald-50'
+            }`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               STANDBY
             </span>
           )}
-          <span className="text-zinc-400 border border-zinc-800 px-2 py-0.5 flex items-center gap-1">
+          <span className={`px-2 py-0.5 flex items-center gap-1 rounded-xs border transition ${
+            theme === 'dark'
+              ? 'text-zinc-400 border-zinc-800'
+              : 'text-zinc-600 border-zinc-300 bg-white shadow-xs'
+          }`}>
             <Shield className="w-3 h-3 text-zinc-500" />
             REDACT: 10PX
           </span>
@@ -400,17 +440,21 @@ export default function App() {
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className="px-2.5 py-0.5 border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 flex items-center gap-1.5 transition text-[11px] font-bold"
+            className={`px-2.5 py-0.5 border flex items-center gap-1.5 transition text-[11px] font-bold rounded-xs ${
+              theme === 'dark'
+                ? 'border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200'
+                : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 shadow-xs'
+            }`}
             title={`Ganti tema tampilan (saat ini: ${theme.toUpperCase()})`}
           >
             {theme === 'dark' ? (
               <>
-                <Sun className="w-3 h-3 text-amber-400" />
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
                 <span>LIGHT</span>
               </>
             ) : (
               <>
-                <Moon className="w-3 h-3 text-indigo-400" />
+                <Moon className="w-3.5 h-3.5 text-indigo-500" />
                 <span>DARK</span>
               </>
             )}
@@ -1042,7 +1086,11 @@ export default function App() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <button
                               onClick={() => openInFileManager(rec.id)}
-                              className="px-2.5 py-1 border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 font-semibold text-[11px] flex items-center gap-1.5 transition"
+                              className={`px-2.5 py-1 border font-semibold text-[11px] flex items-center gap-1.5 transition rounded-xs ${
+                                theme === 'dark'
+                                  ? 'border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200'
+                                  : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 shadow-xs'
+                              }`}
                               title="Buka folder rekaman ini di OS File Manager (Finder / Nautilus / Explorer)"
                             >
                               <Folder className="w-3.5 h-3.5 text-zinc-400" />
@@ -1052,10 +1100,14 @@ export default function App() {
                             {totalSteps > 0 && (
                               <button
                                 onClick={() => setExpandedBrowseId(isExpanded ? null : rec.id)}
-                                className={`px-2.5 py-1 border text-[11px] font-semibold flex items-center gap-1.5 transition ${
+                                className={`px-2.5 py-1 border text-[11px] font-semibold flex items-center gap-1.5 transition rounded-xs ${
                                   isExpanded
-                                    ? 'border-zinc-500 bg-zinc-800 text-white'
-                                    : 'border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300'
+                                    ? (theme === 'dark'
+                                        ? 'border-zinc-500 bg-zinc-800 text-white'
+                                        : 'border-zinc-900 bg-zinc-900 text-white')
+                                    : (theme === 'dark'
+                                        ? 'border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300'
+                                        : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 shadow-xs')
                                 }`}
                                 title="Browse all captured screenshots for this SOP"
                               >
@@ -1066,16 +1118,24 @@ export default function App() {
 
                             <button
                               onClick={() => resumeFromLibrary(rec)}
-                              className="px-2.5 py-1 border border-emerald-800 bg-emerald-950/40 hover:bg-emerald-900 text-emerald-300 font-semibold text-[11px] flex items-center gap-1 transition"
+                              className={`px-2.5 py-1 border font-semibold text-[11px] flex items-center gap-1 transition rounded-xs ${
+                                theme === 'dark'
+                                  ? 'border-emerald-800 bg-emerald-950/40 hover:bg-emerald-900 text-emerald-300'
+                                  : 'border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 shadow-xs'
+                              }`}
                               title="Lanjutkan rekaman SOP ini di Chromium"
                             >
-                              <Play className="w-3 h-3 fill-emerald-300" />
+                              <Play className={`w-3 h-3 ${theme === 'dark' ? 'fill-emerald-300' : 'fill-emerald-700'}`} />
                               RESUME
                             </button>
 
                             <button
                               onClick={() => openInspector(rec.id)}
-                              className="px-2.5 py-1 border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-[11px] flex items-center gap-1 transition"
+                              className={`px-2.5 py-1 border font-semibold text-[11px] flex items-center gap-1 transition rounded-xs ${
+                                theme === 'dark'
+                                  ? 'border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-100'
+                                  : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 shadow-xs'
+                              }`}
                             >
                               <Eye className="w-3 h-3" />
                               INLINE_VIEW
@@ -1085,7 +1145,11 @@ export default function App() {
                               href={`/recordings/${rec.id}/index.html`}
                               target="_blank"
                               rel="noreferrer"
-                              className="px-2.5 py-1 bg-zinc-100 hover:bg-white text-black font-semibold text-[11px] flex items-center gap-1 transition"
+                              className={`px-2.5 py-1 font-semibold text-[11px] flex items-center gap-1 transition rounded-xs ${
+                                theme === 'dark'
+                                  ? 'bg-zinc-100 hover:bg-white text-black'
+                                  : 'bg-zinc-900 hover:bg-zinc-800 text-white shadow-xs'
+                              }`}
                             >
                               <ExternalLink className="w-3 h-3" />
                               NEW_TAB
@@ -1481,35 +1545,45 @@ export default function App() {
 
               {/* View Switcher & Action Controls */}
               <div className="flex items-center gap-2">
-                <div className="flex items-center border border-zinc-800 bg-black p-0.5 text-[10px]">
+                <div className={`flex items-center p-0.5 rounded border transition text-[10px] ${
+                  theme === 'dark' ? 'border-zinc-800 bg-black' : 'border-zinc-300 bg-zinc-200/80 shadow-inner'
+                }`}>
                   <button
                     onClick={() => setInspectViewMode('iframe')}
-                    className={`px-2 py-0.5 transition ${
-                      inspectViewMode === 'iframe' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400'
+                    className={`px-2 py-0.5 transition rounded-xs ${
+                      inspectViewMode === 'iframe'
+                        ? (theme === 'dark' ? 'bg-zinc-800 text-white font-bold' : 'bg-white text-zinc-900 font-bold border border-zinc-300 shadow-xs')
+                        : (theme === 'dark' ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900')
                     }`}
                   >
                     HTML_VIEWER
                   </button>
                   <button
                     onClick={() => setInspectViewMode('steps')}
-                    className={`px-2 py-0.5 transition ${
-                      inspectViewMode === 'steps' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400'
+                    className={`px-2 py-0.5 transition rounded-xs ${
+                      inspectViewMode === 'steps'
+                        ? (theme === 'dark' ? 'bg-zinc-800 text-white font-bold' : 'bg-white text-zinc-900 font-bold border border-zinc-300 shadow-xs')
+                        : (theme === 'dark' ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900')
                     }`}
                   >
                     STEP_GALLERY
                   </button>
                   <button
                     onClick={() => setInspectViewMode('markdown')}
-                    className={`px-2 py-0.5 transition ${
-                      inspectViewMode === 'markdown' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400'
+                    className={`px-2 py-0.5 transition rounded-xs ${
+                      inspectViewMode === 'markdown'
+                        ? (theme === 'dark' ? 'bg-zinc-800 text-white font-bold' : 'bg-white text-zinc-900 font-bold border border-zinc-300 shadow-xs')
+                        : (theme === 'dark' ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900')
                     }`}
                   >
                     GUIDE.MD {isEditingMarkdown ? '(EDIT)' : ''}
                   </button>
                   <button
                     onClick={() => setInspectViewMode('files')}
-                    className={`px-2 py-0.5 transition ${
-                      inspectViewMode === 'files' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400'
+                    className={`px-2 py-0.5 transition rounded-xs ${
+                      inspectViewMode === 'files'
+                        ? (theme === 'dark' ? 'bg-zinc-800 text-white font-bold' : 'bg-white text-zinc-900 font-bold border border-zinc-300 shadow-xs')
+                        : (theme === 'dark' ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900')
                     }`}
                   >
                     SOURCE_FILES ({inspectDetail.files ? inspectDetail.files.length : 0})
@@ -1518,7 +1592,11 @@ export default function App() {
 
                 <button
                   onClick={() => openInFileManager(inspectDetail.id)}
-                  className="px-2 py-1 border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 flex items-center gap-1 text-[11px] font-semibold transition"
+                  className={`px-2.5 py-1 border flex items-center gap-1 text-[11px] font-semibold transition rounded-xs ${
+                    theme === 'dark'
+                      ? 'border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200'
+                      : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 shadow-xs'
+                  }`}
                   title="Buka direktori rekaman ini di OS File Manager (Finder / Nautilus)"
                 >
                   <Folder className="w-3.5 h-3.5 text-zinc-400" />
