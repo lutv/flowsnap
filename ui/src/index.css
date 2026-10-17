@@ -1,153 +1,280 @@
 @import "tailwindcss";
 
-/* Base Reset & Smooth Theme Transitions */
+/* ============================================================== */
+/* EYE-FRIENDLY COLOR PALETTES & THEME ENGINE (FLOWSNAP)          */
+/* Designed for extended reading, zero glare, and high clarity.   */
+/* ============================================================== */
+
 html {
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* Subtle corner softening for eye comfort while keeping monospace brutalist feel */
+button, input, select, textarea, kbd {
+  border-radius: 3px;
+}
+
+/* -------------------------------------------------------------- */
+/* 🌙 DARK THEME (SOFT ERGONOMIC CARBON - TIDAK SILAU)            */
+/* -------------------------------------------------------------- */
 html.dark {
   color-scheme: dark;
-  background-color: #000000;
-  color: #e4e4e7;
+  background-color: #0e1015;
+  color: #e2e4e9;
 }
 
+html.dark body,
+html.dark .min-h-screen {
+  background-color: #0e1015 !important;
+  color: #e2e4e9 !important;
+}
+
+/* Canvas & Panels in Dark Mode */
+html.dark .bg-black {
+  background-color: #08090c !important;
+}
+
+html.dark .bg-zinc-950 {
+  background-color: #14161d !important;
+}
+
+html.dark .bg-zinc-900,
+html.dark .bg-zinc-900\/60,
+html.dark .bg-zinc-900\/50,
+html.dark .bg-zinc-900\/40 {
+  background-color: #1a1e26 !important;
+}
+
+html.dark .bg-zinc-800 {
+  background-color: #232834 !important;
+}
+
+html.dark .bg-zinc-850 {
+  background-color: #1a1e26 !important;
+}
+
+html.dark .bg-black\/60,
+html.dark .bg-black\/40 {
+  background-color: rgba(11, 13, 17, 0.85) !important;
+}
+
+/* Borders in Dark Mode */
+html.dark .border-zinc-800,
+html.dark .border-zinc-850,
+html.dark .border-zinc-700,
+html.dark .border-zinc-750,
+html.dark .border-zinc-900 {
+  border-color: #262b36 !important;
+}
+
+html.dark .border-zinc-800\/80 {
+  border-color: #262b36 !important;
+}
+
+html.dark .divide-zinc-800,
+html.dark .divide-zinc-850,
+html.dark .divide-zinc-900 {
+  border-color: #1e222b !important;
+}
+
+/* Texts in Dark Mode */
+html.dark .text-zinc-100 {
+  color: #f1f3f6 !important;
+}
+
+html.dark .text-zinc-200 {
+  color: #e2e4e9 !important;
+}
+
+html.dark .text-zinc-300 {
+  color: #cbd0d8 !important;
+}
+
+html.dark .text-zinc-400 {
+  color: #9aa1ad !important;
+}
+
+html.dark .text-zinc-500 {
+  color: #6b7382 !important;
+}
+
+html.dark .text-zinc-600 {
+  color: #4f5765 !important;
+}
+
+/* Hovers in Dark Mode */
+html.dark .hover\:bg-zinc-900:hover,
+html.dark .hover\:bg-zinc-900\/40:hover,
+html.dark .hover\:bg-zinc-800:hover,
+html.dark .hover\:bg-zinc-700:hover {
+  background-color: #262c3a !important;
+}
+
+html.dark .hover\:text-white:hover {
+  color: #ffffff !important;
+}
+
+/* Form Controls in Dark Mode */
+html.dark input[type="text"],
+html.dark input[type="url"],
+html.dark select,
+html.dark textarea {
+  background-color: #0a0b0f !important;
+  color: #f1f3f6 !important;
+  border-color: #262b36 !important;
+}
+
+html.dark input:focus,
+html.dark select:focus,
+html.dark textarea:focus {
+  border-color: #4b5568 !important;
+}
+
+/* -------------------------------------------------------------- */
+/* ☀️ LIGHT THEME (WARM SOFT NATURAL PAPER - RAMAH DI MATA)       */
+/* -------------------------------------------------------------- */
 html.light {
   color-scheme: light;
-  background-color: #f8fafc;
-  color: #09090b;
+  background-color: #f5f6f9;
+  color: #1a1e24;
 }
-
-body {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-}
-
-/* ============================================================== */
-/* LIGHT THEME MONOCHROME BRUTALIST OVERRIDES                     */
-/* ============================================================== */
 
 html.light body,
 html.light .min-h-screen {
-  background-color: #f8fafc !important;
-  color: #09090b !important;
+  background-color: #f5f6f9 !important;
+  color: #1a1e24 !important;
 }
 
-/* Backgrounds */
+/* Canvas & Panels in Light Mode */
 html.light .bg-black {
   background-color: #ffffff !important;
 }
 
 html.light .bg-zinc-950 {
-  background-color: #f1f5f9 !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+}
+
+html.light header.bg-zinc-950 {
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
 }
 
 html.light .bg-zinc-900,
 html.light .bg-zinc-900\/60,
 html.light .bg-zinc-900\/50,
 html.light .bg-zinc-900\/40 {
-  background-color: #e2e8f0 !important;
+  background-color: #eef1f5 !important;
 }
 
 html.light .bg-zinc-800 {
-  background-color: #cbd5e1 !important;
+  background-color: #e2e6ed !important;
 }
 
 html.light .bg-zinc-850 {
-  background-color: #e2e8f0 !important;
+  background-color: #f0f3f7 !important;
 }
 
 html.light .bg-black\/60,
 html.light .bg-black\/80,
 html.light .bg-black\/40 {
-  background-color: rgba(241, 245, 249, 0.95) !important;
+  background-color: rgba(245, 247, 250, 0.94) !important;
 }
 
-/* Borders */
+/* Borders in Light Mode - Soft & Warm */
 html.light .border-zinc-800,
 html.light .border-zinc-850,
 html.light .border-zinc-700,
 html.light .border-zinc-750,
 html.light .border-zinc-900 {
-  border-color: #cbd5e1 !important;
+  border-color: #d8dde6 !important;
 }
 
 html.light .border-zinc-800\/80 {
-  border-color: #cbd5e1 !important;
+  border-color: #d8dde6 !important;
 }
 
 html.light .divide-zinc-800,
 html.light .divide-zinc-850,
 html.light .divide-zinc-900 {
-  border-color: #e2e8f0 !important;
+  border-color: #e5e9f0 !important;
 }
 
-/* Texts */
-html.light .text-zinc-100,
+/* Texts in Light Mode - Warm Charcoal, Not Harsh Ink */
+html.light .text-zinc-100 {
+  color: #14171d !important;
+}
+
 html.light .text-zinc-200 {
-  color: #0f172a !important;
+  color: #21262d !important;
 }
 
 html.light .text-zinc-300 {
-  color: #1e293b !important;
+  color: #374151 !important;
 }
 
 html.light .text-zinc-400 {
-  color: #475569 !important;
+  color: #4b5563 !important;
 }
 
 html.light .text-zinc-500 {
-  color: #64748b !important;
+  color: #6b7280 !important;
 }
 
 html.light .text-zinc-600 {
-  color: #94a3b8 !important;
+  color: #9ca3af !important;
 }
 
 html.light .text-zinc-700 {
-  color: #cbd5e1 !important;
+  color: #d1d5db !important;
 }
 
-/* Hovers */
+/* Hovers in Light Mode */
 html.light .hover\:bg-zinc-900:hover,
 html.light .hover\:bg-zinc-900\/40:hover,
 html.light .hover\:bg-zinc-800:hover,
 html.light .hover\:bg-zinc-850:hover,
 html.light .hover\:bg-zinc-700:hover {
-  background-color: #e2e8f0 !important;
+  background-color: #e5e9f0 !important;
 }
 
 html.light .hover\:text-white:hover,
 html.light .hover\:text-zinc-200:hover {
-  color: #000000 !important;
+  color: #0f1217 !important;
 }
 
 html.light .hover\:border-zinc-500:hover,
 html.light .hover\:border-zinc-600:hover,
 html.light .hover\:border-zinc-700:hover {
-  border-color: #64748b !important;
+  border-color: #8b95a5 !important;
 }
 
-/* Form Controls */
+/* Form Controls in Light Mode */
 html.light input[type="text"],
 html.light input[type="url"],
 html.light select,
 html.light textarea {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  border-color: #cbd5e1 !important;
+  background-color: #fbfcff !important;
+  color: #14171d !important;
+  border-color: #d1d6e0 !important;
 }
 
 html.light input::placeholder,
 html.light textarea::placeholder {
-  color: #94a3b8 !important;
+  color: #9aa1ad !important;
 }
 
 html.light input:focus,
 html.light select:focus,
 html.light textarea:focus {
-  border-color: #0f172a !important;
+  border-color: #3b4252 !important;
+  box-shadow: 0 0 0 1px #3b4252 !important;
 }
 
-/* Semantics in Light Mode */
+/* Semantics & Status Badges (Soft Natural Tones) */
 html.light .bg-emerald-950\/40,
 html.light .bg-emerald-900 {
   background-color: #ecfdf5 !important;
@@ -166,7 +293,8 @@ html.light .border-emerald-600 {
   border-color: #6ee7b7 !important;
 }
 
-html.light .bg-red-950\/30 {
+html.light .bg-red-950\/30,
+html.light .bg-red-950\/40 {
   background-color: #fef2f2 !important;
   color: #991b1b !important;
   border-color: #fecaca !important;
@@ -195,24 +323,25 @@ html.light .border-amber-800 {
   border-color: #fcd34d !important;
 }
 
-/* Inverted Action Buttons */
+/* Inverted Dark Action Buttons in Light Mode */
 html.light .bg-zinc-100 {
-  background-color: #0f172a !important;
+  background-color: #1e2430 !important;
   color: #ffffff !important;
 }
 
 html.light .hover\:bg-white:hover {
-  background-color: #1e293b !important;
+  background-color: #2b3342 !important;
   color: #ffffff !important;
 }
 
-/* Modal Backdrops & Overlays */
+/* Modal Backdrops & Overlays in Light Mode */
 html.light .fixed.inset-0.bg-black\/80 {
-  background-color: rgba(15, 23, 42, 0.65) !important;
+  background-color: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(4px) !important;
 }
 
 html.light kbd {
-  background-color: #e2e8f0 !important;
-  color: #0f172a !important;
-  border-color: #cbd5e1 !important;
+  background-color: #eaedf2 !important;
+  color: #242930 !important;
+  border-color: #cbd2dc !important;
 }

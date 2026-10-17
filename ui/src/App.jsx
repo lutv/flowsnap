@@ -325,7 +325,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-zinc-200 font-mono text-xs flex flex-col antialiased selection:bg-zinc-800 selection:text-white">
+    <div className={`min-h-screen bg-black text-zinc-200 font-mono text-xs flex flex-col antialiased selection:bg-zinc-800 selection:text-white ${theme}`}>
       {/* Monospace Top Bar */}
       <header className="border-b border-zinc-800 bg-zinc-950 px-5 py-3 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3">
