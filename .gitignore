@@ -34,3 +34,5 @@ Thumbs.db
 dist/
 build/
 src-tauri/target/
+src-tauri/resources/*
+!src-tauri/resources/.gitkeep

@@ -19,10 +19,29 @@ export class BrowserManager {
   async launch() {
     const playwright = await checkPlaywright();
     
-    this.browser = await playwright.chromium.launch({
-      headless: this.headless,
-      args: ['--start-maximized']
-    });
+    let launchErr = null;
+    const channels = [undefined, 'msedge', 'chrome'];
+    for (const channel of channels) {
+      try {
+        const opts = {
+          headless: this.headless,
+          args: ['--start-maximized']
+        };
+        if (channel) opts.channel = channel;
+        this.browser = await playwright.chromium.launch(opts);
+        if (channel) {
+          console.log(`\x1b[32m[Browser]\x1b[0m Berhasil menggunakan browser sistem: \x1b[1m${channel}\x1b[0m`);
+        }
+        launchErr = null;
+        break;
+      } catch (err) {
+        launchErr = err;
+      }
+    }
+
+    if (!this.browser && launchErr) {
+      throw launchErr;
+    }
 
     const contextOpts = { viewport: null };
 

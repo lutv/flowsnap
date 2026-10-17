@@ -133,6 +133,33 @@ jobs:
       - name: Build Web Studio (UI)
         run: npm run ui:build
 
+      - name: Bundle Node Engine and Standalone Resources
+        shell: bash
+        run: |
+          mkdir -p src-tauri/resources/src
+          mkdir -p src-tauri/resources/bin
+
+          cp -r src/* src-tauri/resources/src/
+          cp -r bin/* src-tauri/resources/bin/
+          cp package.json src-tauri/resources/
+          cp -r node_modules src-tauri/resources/
+
+          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
+            echo "Downloading portable node.exe for Windows..."
+            curl -fsSL -o src-tauri/resources/node.exe https://nodejs.org/dist/v20.18.0/win-x64/node.exe
+            chmod +x src-tauri/resources/node.exe
+          elif [ "${{ matrix.platform }}" = "macos-latest" ]; then
+            echo "Bundling node binary for macOS..."
+            cp "$(which node)" src-tauri/resources/node
+            chmod +x src-tauri/resources/node
+          else
+            echo "Bundling node binary for Linux..."
+            cp "$(which node)" src-tauri/resources/node
+            chmod +x src-tauri/resources/node
+          fi
+
+          ls -la src-tauri/resources/
+
       - name: Build Tauri Desktop Bundle
         run: npm run tauri build ${{ matrix.args }}
 
