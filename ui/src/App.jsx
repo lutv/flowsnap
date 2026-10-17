@@ -18,6 +18,7 @@ import {
   Hash,
   CornerDownLeft,
   ChevronRight,
+  ChevronLeft,
   AlertCircle,
   Eye,
   Maximize2,
@@ -69,6 +70,8 @@ export default function App() {
   const [recordings, setRecordings] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingLib, setLoadingLib] = useState(false);
+  const [expandedBrowseId, setExpandedBrowseId] = useState(null);
+  const [browsingStepIndex, setBrowsingStepIndex] = useState({});
 
   // Profiles State
   const [profiles, setProfiles] = useState([
@@ -840,56 +843,302 @@ export default function App() {
               <div className="divide-y divide-zinc-850 border border-zinc-800 bg-zinc-950">
                 {recordings
                   .filter((r) => r.title.toLowerCase().includes(searchQuery.toLowerCase()))
-                  .map((rec) => (
-                    <div key={rec.id} className="p-4 flex items-center justify-between hover:bg-zinc-900/40 transition">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-zinc-100 text-xs">{rec.title}</span>
-                          <span className="text-[10px] text-zinc-400 border border-zinc-800 px-1.5 py-0.2">
-                            {rec.stepsCount} steps
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-zinc-500 font-mono">
-                          {rec.outDir} • {new Date(rec.updatedAt).toLocaleString('id-ID')}
-                        </div>
-                      </div>
+                  .map((rec) => {
+                    const isExpanded = expandedBrowseId === rec.id;
+                    const currentStepIdx = browsingStepIndex[rec.id] || 0;
+                    const currentStep = rec.steps && rec.steps[currentStepIdx] ? rec.steps[currentStepIdx] : (rec.steps && rec.steps[0]);
+                    const totalSteps = rec.steps ? rec.steps.length : rec.stepsCount || 0;
 
-                      <div className="flex items-center gap-2">
-                        {rec.hasGuide && (
-                          <span className="text-[10px] text-emerald-400 border border-emerald-900/60 px-1.5 py-0.5">
-                            GUIDE.MD_OK
-                          </span>
+                    return (
+                      <div key={rec.id} className="transition">
+                        {/* Main Card Header */}
+                        <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-zinc-900/40 transition">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-zinc-100 text-xs">{rec.title}</span>
+                              <span className="text-[10px] text-zinc-400 border border-zinc-800 px-1.5 py-0.5">
+                                {rec.stepsCount} steps
+                              </span>
+                              {rec.hasGuide && (
+                                <span className="text-[10px] text-emerald-400 border border-emerald-900/60 px-1.5 py-0.5">
+                                  GUIDE.MD_OK
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-zinc-500 font-mono">
+                              {rec.outDir} • {new Date(rec.updatedAt).toLocaleString('id-ID')}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {totalSteps > 0 && (
+                              <button
+                                onClick={() => setExpandedBrowseId(isExpanded ? null : rec.id)}
+                                className={`px-2.5 py-1 border text-[11px] font-semibold flex items-center gap-1.5 transition ${
+                                  isExpanded
+                                    ? 'border-zinc-500 bg-zinc-800 text-white'
+                                    : 'border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300'
+                                }`}
+                                title="Browse all captured screenshots for this SOP"
+                              >
+                                <Camera className="w-3.5 h-3.5 text-zinc-400" />
+                                {isExpanded ? 'TUTUP_SCREENSHOTS' : `BROWSE_SCREENSHOTS (${totalSteps})`}
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => resumeFromLibrary(rec)}
+                              className="px-2.5 py-1 border border-emerald-800 bg-emerald-950/40 hover:bg-emerald-900 text-emerald-300 font-semibold text-[11px] flex items-center gap-1 transition"
+                              title="Lanjutkan rekaman SOP ini di Chromium"
+                            >
+                              <Play className="w-3 h-3 fill-emerald-300" />
+                              RESUME
+                            </button>
+
+                            <button
+                              onClick={() => openInspector(rec.id)}
+                              className="px-2.5 py-1 border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-[11px] flex items-center gap-1 transition"
+                            >
+                              <Eye className="w-3 h-3" />
+                              INLINE_VIEW
+                            </button>
+
+                            <a
+                              href={`/recordings/${rec.id}/index.html`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2.5 py-1 bg-zinc-100 hover:bg-white text-black font-semibold text-[11px] flex items-center gap-1 transition"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              NEW_TAB
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* Compact Quick-Thumbnails Strip (when NOT expanded) */}
+                        {!isExpanded && rec.steps && rec.steps.length > 0 && (
+                          <div className="px-4 pb-3 pt-0 flex items-center gap-2 overflow-x-auto">
+                            <span className="text-[10px] text-zinc-600 font-mono flex-shrink-0">PREVIEWS:</span>
+                            {rec.steps.slice(0, 5).map((st, sIdx) => (
+                              <div
+                                key={sIdx}
+                                onClick={() => {
+                                  setBrowsingStepIndex((prev) => ({ ...prev, [rec.id]: sIdx }));
+                                  setExpandedBrowseId(rec.id);
+                                }}
+                                className="group relative cursor-pointer border border-zinc-850 hover:border-zinc-500 bg-black w-24 h-14 flex-shrink-0 overflow-hidden transition"
+                                title={`Step ${st.step}: ${st.label || st.type}`}
+                              >
+                                <img
+                                  src={`/recordings/${rec.id}/${st.actionFile}`}
+                                  alt={`Step ${st.step}`}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition"
+                                  loading="lazy"
+                                />
+                                <div className="absolute top-0 left-0 bg-black/80 px-1 py-0.2 text-[9px] font-mono text-zinc-300">
+                                  #{String(st.step).padStart(2, '0')}
+                                </div>
+                              </div>
+                            ))}
+                            {rec.steps.length > 5 && (
+                              <button
+                                onClick={() => {
+                                  setBrowsingStepIndex((prev) => ({ ...prev, [rec.id]: 0 }));
+                                  setExpandedBrowseId(rec.id);
+                                }}
+                                className="text-[10px] text-zinc-500 hover:text-zinc-300 font-mono px-2 py-1 border border-dashed border-zinc-800 hover:border-zinc-600 flex-shrink-0"
+                              >
+                                +{rec.steps.length - 5} MORE...
+                              </button>
+                            )}
+                          </div>
                         )}
 
-                        <button
-                          onClick={() => resumeFromLibrary(rec)}
-                          className="px-2.5 py-1 border border-emerald-800 bg-emerald-950/40 hover:bg-emerald-900 text-emerald-300 font-semibold text-[11px] flex items-center gap-1 transition"
-                          title="Lanjutkan rekaman SOP ini di Chromium"
-                        >
-                          <Play className="w-3 h-3 fill-emerald-300" />
-                          RESUME
-                        </button>
+                        {/* Expanded Screenshot Browser */}
+                        {isExpanded && currentStep && (
+                          <div className="border-t border-zinc-800 bg-black/60 p-4 space-y-4 animate-in fade-in duration-150">
+                            {/* Step navigation & meta bar */}
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 bg-zinc-800 text-zinc-200 text-[11px] font-mono font-bold">
+                                  STEP {String(currentStep.step).padStart(2, '0')} OF {String(rec.steps.length).padStart(2, '0')}
+                                </span>
+                                <span className="text-xs font-semibold text-zinc-200">
+                                  [{currentStep.type?.toUpperCase()}] {currentStep.label || 'Action'}
+                                </span>
+                                {currentStep.tag && (
+                                  <span className="text-[10px] text-zinc-500 font-mono">
+                                    &lt;{currentStep.tag}&gt;
+                                  </span>
+                                )}
+                              </div>
 
-                        <button
-                          onClick={() => openInspector(rec.id)}
-                          className="px-2.5 py-1 border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 font-semibold text-[11px] flex items-center gap-1 transition"
-                        >
-                          <Eye className="w-3 h-3" />
-                          INLINE_VIEW
-                        </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  disabled={currentStepIdx === 0}
+                                  onClick={() =>
+                                    setBrowsingStepIndex((prev) => ({
+                                      ...prev,
+                                      [rec.id]: Math.max(0, currentStepIdx - 1)
+                                    }))
+                                  }
+                                  className="px-2.5 py-1 border border-zinc-800 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed text-zinc-300 text-[11px] flex items-center gap-1 font-mono transition"
+                                >
+                                  <ChevronLeft className="w-3.5 h-3.5" />
+                                  PREV
+                                </button>
+                                <button
+                                  disabled={currentStepIdx >= rec.steps.length - 1}
+                                  onClick={() =>
+                                    setBrowsingStepIndex((prev) => ({
+                                      ...prev,
+                                      [rec.id]: Math.min(rec.steps.length - 1, currentStepIdx + 1)
+                                    }))
+                                  }
+                                  className="px-2.5 py-1 border border-zinc-800 hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed text-zinc-300 text-[11px] flex items-center gap-1 font-mono transition"
+                                >
+                                  NEXT
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => setExpandedBrowseId(null)}
+                                  className="px-2 py-1 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-white text-[11px] font-mono transition"
+                                  title="Close browser"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
 
-                        <a
-                          href={`/recordings/${rec.id}/index.html`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-2.5 py-1 bg-zinc-100 hover:bg-white text-black font-semibold text-[11px] flex items-center gap-1 transition"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          NEW_TAB
-                        </a>
+                            {/* Step URL */}
+                            <div className="text-[10px] text-zinc-500 font-mono truncate">
+                              URL: <span className="text-zinc-400">{currentStep.url}</span>
+                            </div>
+
+                            {/* Dual Shot Display: Action Highlight & Result Screen */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                              {/* Action Shot */}
+                              <div className="border border-zinc-800 bg-zinc-950 p-3 space-y-2">
+                                <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+                                    <span className="font-bold text-zinc-200">ACTION_HIGHLIGHT (RED BOX)</span>
+                                  </div>
+                                  <button
+                                    onClick={() => setLightboxImg(`/recordings/${rec.id}/${currentStep.actionFile}`)}
+                                    className="hover:text-white flex items-center gap-1 text-[10px]"
+                                    title="Fullscreen zoom"
+                                  >
+                                    <Maximize2 className="w-3 h-3" />
+                                    ZOOM
+                                  </button>
+                                </div>
+                                <div
+                                  className="relative cursor-zoom-in bg-black border border-zinc-850 overflow-hidden group"
+                                  onClick={() => setLightboxImg(`/recordings/${rec.id}/${currentStep.actionFile}`)}
+                                >
+                                  <img
+                                    src={`/recordings/${rec.id}/${currentStep.actionFile}`}
+                                    alt={`Action Step ${currentStep.step}`}
+                                    className="w-full h-auto max-h-[380px] object-contain mx-auto transition group-hover:opacity-95"
+                                  />
+                                  <div className="absolute bottom-2 right-2 bg-black/80 text-[10px] text-zinc-400 px-1.5 py-0.5 border border-zinc-800 font-mono">
+                                    KLIK UNTUK FULLSCREEN
+                                  </div>
+                                </div>
+                                <div className="text-[10px] text-zinc-500 font-mono truncate">
+                                  FILE: {currentStep.actionFile}
+                                </div>
+                              </div>
+
+                              {/* Result Shot */}
+                              <div className="border border-zinc-800 bg-zinc-950 p-3 space-y-2">
+                                <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                                    <span className="font-bold text-zinc-200">RESULT_STATE (AFTER ACTION)</span>
+                                  </div>
+                                  {currentStep.resultFile && (
+                                    <button
+                                      onClick={() => setLightboxImg(`/recordings/${rec.id}/${currentStep.resultFile}`)}
+                                      className="hover:text-white flex items-center gap-1 text-[10px]"
+                                      title="Fullscreen zoom"
+                                    >
+                                      <Maximize2 className="w-3 h-3" />
+                                      ZOOM
+                                    </button>
+                                  )}
+                                </div>
+                                {currentStep.resultFile ? (
+                                  <div
+                                    className="relative cursor-zoom-in bg-black border border-zinc-850 overflow-hidden group"
+                                    onClick={() => setLightboxImg(`/recordings/${rec.id}/${currentStep.resultFile}`)}
+                                  >
+                                    <img
+                                      src={`/recordings/${rec.id}/${currentStep.resultFile}`}
+                                      alt={`Result Step ${currentStep.step}`}
+                                      className="w-full h-auto max-h-[380px] object-contain mx-auto transition group-hover:opacity-95"
+                                    />
+                                    <div className="absolute bottom-2 right-2 bg-black/80 text-[10px] text-zinc-400 px-1.5 py-0.5 border border-zinc-800 font-mono">
+                                      KLIK UNTUK FULLSCREEN
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="h-[280px] border border-dashed border-zinc-850 flex items-center justify-center text-zinc-600 font-mono text-xs">
+                                    TIDAK ADA FOTO HASIL (AUTO-RESULT DISABLED)
+                                  </div>
+                                )}
+                                <div className="text-[10px] text-zinc-500 font-mono truncate">
+                                  FILE: {currentStep.resultFile || 'N/A'}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Filmstrip at the bottom */}
+                            <div className="space-y-1 pt-2">
+                              <div className="text-[10px] font-mono text-zinc-500 flex justify-between">
+                                <span>FILMSTRIP ({rec.steps.length} STEPS):</span>
+                                <span>KLIK LANGKAH UNTUK NAVIGASI CEPAT</span>
+                              </div>
+                              <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1 border border-zinc-850 bg-black/40 p-2">
+                                {rec.steps.map((st, idx) => {
+                                  const isCur = idx === currentStepIdx;
+                                  return (
+                                    <button
+                                      key={idx}
+                                      onClick={() =>
+                                        setBrowsingStepIndex((prev) => ({ ...prev, [rec.id]: idx }))
+                                      }
+                                      className={`flex-shrink-0 text-left border transition p-1 ${
+                                        isCur
+                                          ? 'border-zinc-300 bg-zinc-800'
+                                          : 'border-zinc-800 hover:border-zinc-600 bg-zinc-950'
+                                      }`}
+                                    >
+                                      <div className="w-24 h-14 bg-black overflow-hidden mb-1 relative">
+                                        <img
+                                          src={`/recordings/${rec.id}/${st.actionFile}`}
+                                          alt={`Step ${st.step}`}
+                                          className="w-full h-full object-cover"
+                                          loading="lazy"
+                                        />
+                                        <div className="absolute top-0 left-0 bg-black/80 text-[9px] text-zinc-300 font-mono px-1">
+                                          #{String(st.step).padStart(2, '0')}
+                                        </div>
+                                      </div>
+                                      <div className="w-24 text-[10px] font-mono text-zinc-300 truncate">
+                                        {st.label || st.type}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             )}
           </div>
