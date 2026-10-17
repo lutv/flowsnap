@@ -95,7 +95,7 @@ jobs:
           - platform: 'windows-latest'
             args: ''
           - platform: 'macos-latest'
-            args: '-- --target universal-apple-darwin'
+            args: ''
 
     runs-on: ${{ matrix.platform }}
 
@@ -117,8 +117,6 @@ jobs:
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
@@ -149,18 +147,9 @@ jobs:
             curl -fsSL -o src-tauri/resources/node.exe https://nodejs.org/dist/v20.18.0/win-x64/node.exe
             chmod +x src-tauri/resources/node.exe
           elif [ "${{ matrix.platform }}" = "macos-latest" ]; then
-            echo "Creating universal node binary for macOS (arm64 + x64)..."
-            curl -fsSL https://nodejs.org/dist/v20.18.0/node-v20.18.0-darwin-arm64.tar.gz | tar -xz -C /tmp/
-            curl -fsSL https://nodejs.org/dist/v20.18.0/node-v20.18.0-darwin-x64.tar.gz | tar -xz -C /tmp/
-            lipo -create /tmp/node-v20.18.0-darwin-arm64/bin/node /tmp/node-v20.18.0-darwin-x64/bin/node -output src-tauri/resources/node
+            echo "Bundling native node binary for macOS (Apple Silicon)..."
+            cp "$(which node)" src-tauri/resources/node
             chmod +x src-tauri/resources/node
-            rm -rf /tmp/node-v20.18.0-darwin-*
-            lipo -info src-tauri/resources/node
-
-            echo "Installing sharp prebuilds for darwin-x64 and darwin-arm64..."
-            npm install --cpu=x64 --os=darwin @img/sharp-darwin-x64 --no-save
-            npm install --cpu=arm64 --os=darwin @img/sharp-darwin-arm64 --no-save
-            cp -r node_modules/@img src-tauri/resources/node_modules/ 2>/dev/null || true
           else
             echo "Bundling node binary for Linux..."
             cp "$(which node)" src-tauri/resources/node
