@@ -34,6 +34,9 @@ export function resolveDataDir(appDir = DEFAULT_ROOT_DIR) {
   const isSystemPath =
     appDir.startsWith('/usr') ||
     appDir.startsWith('/opt') ||
+    appDir.startsWith('/Library') ||
+    appDir.includes('/Applications') ||
+    appDir.includes('Contents/Resources') ||
     appDir.toLowerCase().includes('program files') ||
     appDir.toLowerCase().includes('windows');
 

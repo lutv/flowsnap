@@ -20,7 +20,9 @@ export class BrowserManager {
     const playwright = await checkPlaywright();
     
     let launchErr = null;
-    const channels = [undefined, 'msedge', 'chrome'];
+    const channels = process.platform === 'darwin'
+      ? [undefined, 'chrome', 'msedge', 'chromium']
+      : [undefined, 'msedge', 'chrome', 'chromium'];
     for (const channel of channels) {
       try {
         const opts = {
