@@ -51,14 +51,25 @@ fn try_start_engine(app: &tauri::App) {
   }
 
   // 2. Candidate paths for server.mjs
-  let server_candidates = [
-    resource_dir.join("resources").join("src").join("server.mjs"),
-    resource_dir.join("src").join("server.mjs"),
-    exe_dir.join("resources").join("src").join("server.mjs"),
-    exe_dir.join("src").join("server.mjs"),
-    PathBuf::from("src/server.mjs"),
-    PathBuf::from("../src/server.mjs"),
-  ];
+  // In dev mode (debug_assertions), prioritize live workspace source code so changes apply immediately!
+  let server_candidates = if cfg!(debug_assertions) {
+    vec![
+      PathBuf::from("../src/server.mjs"),
+      PathBuf::from("src/server.mjs"),
+      resource_dir.join("resources").join("src").join("server.mjs"),
+      resource_dir.join("src").join("server.mjs"),
+      exe_dir.join("resources").join("src").join("server.mjs"),
+    ]
+  } else {
+    vec![
+      resource_dir.join("resources").join("src").join("server.mjs"),
+      resource_dir.join("src").join("server.mjs"),
+      exe_dir.join("resources").join("src").join("server.mjs"),
+      exe_dir.join("src").join("server.mjs"),
+      PathBuf::from("../src/server.mjs"),
+      PathBuf::from("src/server.mjs"),
+    ]
+  };
 
   for script in &server_candidates {
     if script.exists() {
