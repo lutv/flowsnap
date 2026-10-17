@@ -54,6 +54,7 @@ export default function App() {
   const [latestStep, setLatestStep] = useState(null);
   const [activePreviewStep, setActivePreviewStep] = useState(null);
   const [previewMode, setPreviewMode] = useState('feed'); // 'feed' | 'guide_frame'
+  const [dismissedSession, setDismissedSession] = useState(false);
 
   // Inline Viewer / Modal State
   const [inspectRecording, setInspectRecording] = useState(null); // folder id to inspect
@@ -154,15 +155,18 @@ export default function App() {
   const startRecording = async (opts = {}) => {
     setErrorMsg(null);
     const isResume = !!opts.resume;
+    const targetFolder = opts.folder || outFolder;
+    const targetOutDir = `./recordings/${targetFolder}`;
+    setDismissedSession(false);
 
     try {
       const res = await fetch('/api/start-recording', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url: targetUrl,
-          title: sopTitle,
-          outDir: `./recordings/${outFolder}`,
+          url: opts.url || targetUrl,
+          title: opts.title || sopTitle,
+          outDir: targetOutDir,
           profile: selectedProfile,
           autoResult,
           autoRedact,
@@ -195,6 +199,7 @@ export default function App() {
         setTargetUrl(last.url);
       }
     }
+    setDismissedSession(false);
     setActiveTab('recorder');
   };
 
@@ -445,57 +450,28 @@ export default function App() {
 
                   {/* Execution Action Button */}
                   <div className="pt-2">
-                    {(() => {
-                      const existingDoc = recordings.find((r) => r.id === outFolder);
-                      const hasExistingSteps = existingDoc && existingDoc.stepsCount > 0;
-
-                      if (isRecording) {
-                        return (
-                          <button
-                            onClick={stopRecording}
-                            className="w-full py-2.5 bg-red-950 hover:bg-red-900 text-red-200 font-bold flex items-center justify-center gap-2 border border-red-700 transition"
-                          >
-                            <Square className="w-3.5 h-3.5 fill-red-400" />
-                            STOP_RECORDING (FINALISASI DOKUMEN)
-                          </button>
-                        );
-                      }
-
-                      if (hasExistingSteps) {
-                        return (
-                          <div className="space-y-2">
-                            <div className="p-2 border border-emerald-800/80 bg-emerald-950/20 text-[10px] text-emerald-300 flex items-center justify-between">
-                              <span className="font-semibold">📁 SESI TERSIMPAN: {existingDoc.stepsCount} LANGKAH</span>
-                              <span className="text-[9px] text-emerald-400 bg-emerald-900/60 px-1.5 py-0.5">READY_TO_RESUME</span>
-                            </div>
-                            <button
-                              onClick={() => startRecording({ resume: true })}
-                              className="w-full py-2.5 bg-emerald-900 hover:bg-emerald-800 text-emerald-100 font-bold flex items-center justify-center gap-2 border border-emerald-600 transition active:translate-y-px"
-                            >
-                              <Play className="w-3.5 h-3.5 fill-emerald-300" />
-                              RESUME_SESSION (LANJUTKAN KE STEP #{existingDoc.stepsCount + 1})
-                            </button>
-                            <button
-                              onClick={() => startRecording({ resume: false })}
-                              className="w-full py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-[10px] flex items-center justify-center gap-1.5 border border-zinc-800 transition"
-                            >
-                              <RefreshCw className="w-3 h-3" />
-                              RESTART_FRESH (TIMPA DARI STEP #01)
-                            </button>
-                          </div>
-                        );
-                      }
-
-                      return (
+                    {isRecording ? (
+                      <button
+                        onClick={stopRecording}
+                        className="w-full py-2.5 bg-red-950 hover:bg-red-900 text-red-200 font-bold flex items-center justify-center gap-2 border border-red-700 transition"
+                      >
+                        <Square className="w-3.5 h-3.5 fill-red-400" />
+                        STOP_RECORDING (FINALISASI DOKUMEN)
+                      </button>
+                    ) : (
+                      <div className="space-y-2">
                         <button
                           onClick={() => startRecording({ resume: false })}
                           className="w-full py-2.5 bg-zinc-100 hover:bg-white text-black font-bold flex items-center justify-center gap-2 border border-white transition active:translate-y-px"
                         >
                           <Play className="w-3.5 h-3.5 fill-black" />
-                          LAUNCH_BROWSER_SESSION (BUKA CHROMIUM)
+                          LAUNCH_NEW_SESSION (MULAI SESI BARU)
                         </button>
-                      );
-                    })()}
+                        <p className="text-[10px] text-zinc-500 text-center">
+                          💡 Ingin melanjutkan sesi lama? Gunakan tombol <strong>CONTINUE</strong> di panel stream sebelah kanan atau tab <strong>[2] Library</strong>.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -534,269 +510,294 @@ export default function App() {
                     <div className="flex items-center gap-2">
                       <Radio className={`w-3.5 h-3.5 ${isRecording ? 'text-red-400 animate-pulse' : 'text-zinc-500'}`} />
                       <span className="font-bold text-zinc-100">
-                        {isRecording ? 'LIVE_ASYNC_FEED (CHROMIUM AKTIF)' : 'DOCUMENT_FEED (CHROMIUM STANDBY)'}
+                        {isRecording ? 'LIVE_STREAMING (CHROMIUM AKTIF)' : 'STREAM_MONITOR (STANDBY)'}
                       </span>
-                      <span className="text-[10px] text-zinc-500 font-mono">
-                        ({liveSteps.length} STEPS {isRecording ? 'CAPTURED' : 'RECORDED'})
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-[10px]">
-                      {liveSession?.folder && (
-                        <span className="text-zinc-400 bg-black border border-zinc-850 px-2 py-0.5">
-                          DIR: {liveSession.folder}
+                      {liveSession?.folder && !dismissedSession && (
+                        <span className="text-[10px] text-zinc-500 font-mono">
+                          • {liveSession.folder} ({liveSteps.length} STEPS)
                         </span>
                       )}
-                      {!isRecording && liveSession?.folder && liveSteps.length > 0 && (
-                        <button
-                          onClick={() => {
-                            setOutFolder(liveSession.folder);
-                            startRecording({ resume: true });
-                          }}
-                          className="px-2 py-0.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 flex items-center gap-1 font-bold transition"
-                          title="Buka kembali Chromium untuk melanjutkan rekaman"
-                        >
-                          <Play className="w-2.5 h-2.5 fill-emerald-300" />
-                          LANJUTKAN_SESI
-                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-[10px]">
+                      {!isRecording && liveSession?.folder && !dismissedSession && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setOutFolder(liveSession.folder);
+                              startRecording({ resume: true, folder: liveSession.folder });
+                            }}
+                            className="px-2.5 py-1 bg-emerald-900 hover:bg-emerald-800 text-emerald-100 border border-emerald-600 flex items-center gap-1 font-bold transition text-[11px]"
+                            title="Buka kembali Chromium untuk melanjutkan sesi ini (Cookie & Login tersimpan otomatis di .auth_state.json)"
+                          >
+                            <Play className="w-2.5 h-2.5 fill-emerald-100" />
+                            CONTINUE_SESSION
+                          </button>
+                          <button
+                            onClick={() => setDismissedSession(true)}
+                            className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 flex items-center gap-1 transition text-[11px]"
+                            title="Tutup tampilan sesi ini dari stream monitor"
+                          >
+                            <X className="w-3 h-3" />
+                            TUTUP
+                          </button>
+                        </>
                       )}
-                      {liveSession?.viewerUrl && (
+
+                      {liveSession?.viewerUrl && !dismissedSession && (
                         <button
                           onClick={() => openInspector(liveSession.folder)}
-                          className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 flex items-center gap-1 border border-zinc-700"
+                          className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 flex items-center gap-1 border border-zinc-700 text-[11px]"
                         >
                           <Eye className="w-3 h-3" />
-                          INLINE_PREVIEW
+                          PREVIEW
                         </button>
                       )}
                     </div>
                   </div>
 
-                  {/* Mode Tabs: 'feed' (live steps) vs 'guide_frame' (live HTML viewer) */}
-                  <div className="border-b border-zinc-850 bg-black px-3 py-1.5 flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-[10px]">
-                      <button
-                        onClick={() => setPreviewMode('feed')}
-                        className={`px-2.5 py-1 transition ${
-                          previewMode === 'feed'
-                            ? 'bg-zinc-800 text-white font-bold'
-                            : 'text-zinc-400 hover:text-zinc-200'
-                        }`}
-                      >
-                        [STREAM FEED]
-                      </button>
-                      <button
-                        onClick={() => setPreviewMode('guide_frame')}
-                        className={`px-2.5 py-1 transition ${
-                          previewMode === 'guide_frame'
-                            ? 'bg-zinc-800 text-white font-bold'
-                            : 'text-zinc-400 hover:text-zinc-200'
-                        }`}
-                      >
-                        [LIVE GUIDE HTML]
-                      </button>
+                  {/* Body: Dismissed State vs Active Monitor Stream */}
+                  {dismissedSession && !isRecording ? (
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3 min-h-[460px]">
+                      <div className="w-10 h-10 border border-zinc-800 bg-zinc-900 flex items-center justify-center text-zinc-600">
+                        <Folder className="w-5 h-5 text-zinc-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="font-bold text-zinc-200 text-xs block">STREAM MONITOR STANDBY</span>
+                        <p className="text-zinc-500 text-[11px] max-w-sm">
+                          Sesi sebelumnya telah ditutup. Gunakan form di sebelah kiri untuk membuat sesi baru, atau buka tab <strong>[2] LIBRARY</strong> untuk memilih dokumen yang ingin dilanjutkan.
+                        </p>
+                      </div>
+                      {liveSession?.folder && (
+                        <button
+                          onClick={() => setDismissedSession(false)}
+                          className="px-3 py-1.5 border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-[11px] flex items-center gap-1.5 transition"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          BUKA KEMBALI MONITOR SESI ({liveSession.folder})
+                        </button>
+                      )}
                     </div>
+                  ) : (
+                    <>
+                      {/* Mode Tabs: 'feed' (live steps) vs 'guide_frame' (live HTML viewer) */}
+                      <div className="border-b border-zinc-850 bg-black px-3 py-1.5 flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-[10px]">
+                          <button
+                            onClick={() => setPreviewMode('feed')}
+                            className={`px-2.5 py-1 transition ${
+                              previewMode === 'feed'
+                                ? 'bg-zinc-800 text-white font-bold'
+                                : 'text-zinc-400 hover:text-zinc-200'
+                            }`}
+                          >
+                            [STREAM FEED]
+                          </button>
+                          <button
+                            onClick={() => setPreviewMode('guide_frame')}
+                            className={`px-2.5 py-1 transition ${
+                              previewMode === 'guide_frame'
+                                ? 'bg-zinc-800 text-white font-bold'
+                                : 'text-zinc-400 hover:text-zinc-200'
+                            }`}
+                          >
+                            [LIVE GUIDE HTML]
+                          </button>
+                        </div>
 
-                    <span className="text-[10px] text-zinc-500">
-                      {isRecording ? 'STATUS: BROWSER_RECORDING (800MS)' : 'STATUS: CHROMIUM_CLOSED / IDLE'}
-                    </span>
-                  </div>
+                        <span className="text-[10px] text-zinc-500">
+                          {isRecording ? 'STATUS: BROWSER_RECORDING (800MS)' : 'STATUS: CHROMIUM_CLOSED / IDLE'}
+                        </span>
+                      </div>
 
-                  {/* VIEW MODE 1: LIVE STREAM FEED */}
-                  {previewMode === 'feed' && (
-                    <div className="flex-1 p-4 flex flex-col justify-between space-y-4 overflow-y-auto max-h-[560px]">
-                      {/* Spotlight: LATEST STEP */}
-                      {latestStep ? (
-                        <div className={`p-3.5 space-y-2.5 border-2 ${
-                          isRecording 
-                            ? 'border-emerald-800/80 bg-emerald-950/20' 
-                            : 'border-zinc-800 bg-zinc-950'
-                        }`}>
-                          <div className="flex items-center justify-between pb-2 border-b border-zinc-850">
-                            <div className="flex items-center gap-2">
-                              {isRecording ? (
-                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                              ) : (
-                                <span className="w-2 h-2 rounded-full bg-zinc-600"></span>
-                              )}
-                              <span className={`font-bold text-xs tracking-wide ${
-                                isRecording ? 'text-emerald-300' : 'text-zinc-300'
-                              }`}>
-                                {isRecording ? 'BARUSAN TERCAPTURE' : 'LANGKAH TERAKHIR TERSIMPAN'} • STEP #{String(latestStep.step).padStart(2, '0')}
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-zinc-400 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5">
-                              {latestStep.type?.toUpperCase()}
-                            </span>
-                          </div>
-
-                          <div className="flex items-baseline justify-between text-zinc-300">
-                            <span className="font-bold text-zinc-100 text-xs">
-                              Target: {latestStep.label || 'Elemen Terpilih'}
-                            </span>
-                            <span className="text-[10px] text-zinc-500 font-mono">
-                              {latestStep.timestamp ? new Date(latestStep.timestamp).toLocaleTimeString('id-ID') : 'Realtime'}
-                            </span>
-                          </div>
-
-                          {/* Dual Shot Preview of Latest Step */}
-                          <div className="grid grid-cols-2 gap-2.5 pt-1">
-                            {/* Action Image */}
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-[10px] text-zinc-400">
-                                <span>[1] AKSI & HIGHLIGHT</span>
-                                <span className="text-zinc-600">ACTION</span>
-                              </div>
-                              <div
-                                onClick={() =>
-                                  setLightboxImg(`/recordings/${liveSession.folder}/${latestStep.actionFile}`)
-                                }
-                                className="group relative border border-zinc-800 bg-black aspect-video overflow-hidden cursor-zoom-in"
-                              >
-                                <img
-                                  src={`/recordings/${liveSession.folder}/${latestStep.actionFile}`}
-                                  alt="Action Preview"
-                                  className="w-full h-full object-cover group-hover:scale-105 transition"
-                                />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-                                  <Maximize2 className="w-4 h-4 text-white" />
+                      {/* VIEW MODE 1: LIVE STREAM FEED */}
+                      {previewMode === 'feed' && (
+                        <div className="flex-1 p-4 flex flex-col justify-between space-y-4 overflow-y-auto max-h-[560px]">
+                          {/* Spotlight: LATEST STEP */}
+                          {latestStep ? (
+                            <div className={`p-3.5 space-y-2.5 border-2 ${
+                              isRecording 
+                                ? 'border-emerald-800/80 bg-emerald-950/20' 
+                                : 'border-zinc-800 bg-zinc-950'
+                            }`}>
+                              <div className="flex items-center justify-between pb-2 border-b border-zinc-850">
+                                <div className="flex items-center gap-2">
+                                  {isRecording ? (
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                  ) : (
+                                    <span className="w-2 h-2 rounded-full bg-zinc-600"></span>
+                                  )}
+                                  <span className={`font-bold text-xs tracking-wide ${
+                                    isRecording ? 'text-emerald-300' : 'text-zinc-300'
+                                  }`}>
+                                    {isRecording ? 'BARUSAN TERCAPTURE' : 'LANGKAH TERAKHIR TERSIMPAN'} • STEP #{String(latestStep.step).padStart(2, '0')}
+                                  </span>
                                 </div>
+                                <span className="text-[10px] text-zinc-400 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5">
+                                  {latestStep.type?.toUpperCase()}
+                                </span>
                               </div>
-                            </div>
 
-                            {/* Result Image */}
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between text-[10px] text-zinc-400">
-                                <span>[2] HASIL PERUBAHAN</span>
-                                <span className="text-zinc-600">RESULT</span>
+                              <div className="flex items-baseline justify-between text-zinc-300">
+                                <span className="font-bold text-zinc-100 text-xs">
+                                  Target: {latestStep.label || 'Elemen Terpilih'}
+                                </span>
+                                <span className="text-[10px] text-zinc-500 font-mono">
+                                  {latestStep.timestamp ? new Date(latestStep.timestamp).toLocaleTimeString('id-ID') : 'Realtime'}
+                                </span>
                               </div>
-                              <div
-                                onClick={() =>
-                                  latestStep.resultFile &&
-                                  setLightboxImg(`/recordings/${liveSession.folder}/${latestStep.resultFile}`)
-                                }
-                                className="group relative border border-zinc-800 bg-black aspect-video overflow-hidden cursor-zoom-in"
-                              >
-                                {latestStep.resultFile ? (
-                                  <>
+
+                              {/* Dual Shot Preview of Latest Step */}
+                              <div className="grid grid-cols-2 gap-2.5 pt-1">
+                                {/* Action Image */}
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between text-[10px] text-zinc-400">
+                                    <span>[1] AKSI & HIGHLIGHT</span>
+                                    <span className="text-zinc-600">ACTION</span>
+                                  </div>
+                                  <div
+                                    onClick={() =>
+                                      setLightboxImg(`/recordings/${liveSession.folder}/${latestStep.actionFile}`)
+                                    }
+                                    className="group relative border border-zinc-800 bg-black aspect-video overflow-hidden cursor-zoom-in"
+                                  >
                                     <img
-                                      src={`/recordings/${liveSession.folder}/${latestStep.resultFile}`}
-                                      alt="Result Preview"
+                                      src={`/recordings/${liveSession.folder}/${latestStep.actionFile}`}
+                                      alt="Action Preview"
                                       className="w-full h-full object-cover group-hover:scale-105 transition"
                                     />
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
                                       <Maximize2 className="w-4 h-4 text-white" />
                                     </div>
-                                  </>
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-zinc-600 text-[10px]">
-                                    SINGLE_CAPTURE
                                   </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between text-[10px] text-zinc-400 border-t border-zinc-850 pt-2 font-mono">
-                            <span className="truncate max-w-[280px]">URL: {latestStep.url}</span>
-                            <div className="flex items-center gap-2">
-                              <span className={isRecording ? 'text-emerald-400' : 'text-zinc-500'}>
-                                {isRecording ? 'STATUS: RECORDING_ACTIVE' : 'STATUS: CHROMIUM_CLOSED'}
-                              </span>
-                              {!isRecording && liveSession?.folder && (
-                                <button
-                                  onClick={() => {
-                                    setOutFolder(liveSession.folder);
-                                    startRecording({ resume: true });
-                                  }}
-                                  className="px-2 py-0.5 bg-emerald-900 hover:bg-emerald-800 text-emerald-100 border border-emerald-600 flex items-center gap-1 font-bold transition"
-                                >
-                                  <Play className="w-2.5 h-2.5 fill-emerald-100" />
-                                  LANJUTKAN DARI LANGKAH #{liveSteps.length + 1}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="border border-dashed border-zinc-800 p-8 text-center text-zinc-600 space-y-2">
-                          <Camera className="w-6 h-6 mx-auto text-zinc-700" />
-                          <div>Belum ada langkah yang di-capture.</div>
-                          <div className="text-[10px] text-zinc-600">
-                            Klik elemen di Chromium atau tekan F8 untuk mengambil screenshot pertama.
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Stream History List (All Previous Steps) */}
-                      <div className="space-y-2 pt-2 border-t border-zinc-850">
-                        <div className="text-[11px] font-bold text-zinc-400 flex items-center justify-between">
-                          <span>TIMELINE_HISTORI_LANGKAH ({liveSteps.length})</span>
-                          <span className="text-[10px] text-zinc-600">KLIK KARTU UNTUK INSPEKSI</span>
-                        </div>
-
-                        <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
-                          {[...liveSteps].reverse().map((step) => {
-                            const isLatest = latestStep?.step === step.step;
-                            return (
-                              <div
-                                key={step.step}
-                                onClick={() => setActivePreviewStep(step)}
-                                className={`p-2 border flex items-center justify-between cursor-pointer transition ${
-                                  isLatest
-                                    ? 'border-emerald-700/60 bg-emerald-950/20'
-                                    : 'border-zinc-850 bg-black hover:border-zinc-700'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2.5">
-                                  <span className="font-bold text-zinc-300 text-[11px]">
-                                    #{String(step.step).padStart(2, '0')}
-                                  </span>
-                                  <span className="text-[10px] px-1 py-0.5 border border-zinc-800 bg-zinc-900 text-zinc-300">
-                                    {step.type}
-                                  </span>
-                                  <span className="text-zinc-200 text-xs font-semibold truncate max-w-[240px]">
-                                    {step.label}
-                                  </span>
                                 </div>
 
+                                {/* Result Image */}
+                                <div className="space-y-1">
+                                  <div className="flex items-center justify-between text-[10px] text-zinc-400">
+                                    <span>[2] HASIL PERUBAHAN</span>
+                                    <span className="text-zinc-600">RESULT</span>
+                                  </div>
+                                  <div
+                                    onClick={() =>
+                                      latestStep.resultFile &&
+                                      setLightboxImg(`/recordings/${liveSession.folder}/${latestStep.resultFile}`)
+                                    }
+                                    className="group relative border border-zinc-800 bg-black aspect-video overflow-hidden cursor-zoom-in"
+                                  >
+                                    {latestStep.resultFile ? (
+                                      <>
+                                        <img
+                                          src={`/recordings/${liveSession.folder}/${latestStep.resultFile}`}
+                                          alt="Result Preview"
+                                          className="w-full h-full object-cover group-hover:scale-105 transition"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                                          <Maximize2 className="w-4 h-4 text-white" />
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-zinc-600 text-[10px]">
+                                        SINGLE_CAPTURE
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between text-[10px] text-zinc-400 border-t border-zinc-850 pt-2 font-mono">
+                                <span className="truncate max-w-[280px]">URL: {latestStep.url}</span>
                                 <div className="flex items-center gap-2">
-                                  {step.isRedacted && (
-                                    <span className="text-[9px] text-amber-400 border border-amber-900 px-1">
-                                      REDACTED
-                                    </span>
-                                  )}
-                                  <div className="w-6 h-4 border border-zinc-800 bg-zinc-900 overflow-hidden">
-                                    <img
-                                      src={`/recordings/${liveSession?.folder}/${step.actionFile}`}
-                                      alt="thumb"
-                                      className="w-full h-full object-cover"
-                                    />
-                                  </div>
+                                  <span className="text-emerald-400 border border-emerald-900/60 bg-emerald-950/40 px-1.5 py-0.5" title="Cookies dan local storage tersimpan di .auth_state.json">
+                                    🛡️ AUTH_PRESERVED
+                                  </span>
+                                  <span className={isRecording ? 'text-emerald-400' : 'text-zinc-500'}>
+                                    {isRecording ? 'RECORDING_ACTIVE' : 'STANDBY'}
+                                  </span>
                                 </div>
                               </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                            </div>
+                          ) : (
+                            <div className="border border-dashed border-zinc-800 p-8 text-center text-zinc-600 space-y-2">
+                              <Camera className="w-6 h-6 mx-auto text-zinc-700" />
+                              <div>Belum ada langkah yang di-capture.</div>
+                              <div className="text-[10px] text-zinc-600">
+                                Klik elemen di Chromium atau tekan F8 untuk mengambil screenshot pertama.
+                              </div>
+                            </div>
+                          )}
 
-                  {/* VIEW MODE 2: EMBEDDED LIVE GUIDE FRAME */}
-                  {previewMode === 'guide_frame' && (
-                    <div className="flex-1 flex flex-col bg-black">
-                      {liveSession?.folder && liveSession?.hasHtml ? (
-                        <iframe
-                          src={`/recordings/${liveSession.folder}/index.html`}
-                          title="Live SOP Preview"
-                          className="w-full flex-1 border-0 min-h-[460px]"
-                        />
-                      ) : (
-                        <div className="flex-1 flex items-center justify-center p-8 text-zinc-600">
-                          File index.html belum terbuat atau folder belum dipilih.
+                          {/* Stream History List (All Previous Steps) */}
+                          <div className="space-y-2 pt-2 border-t border-zinc-850">
+                            <div className="text-[11px] font-bold text-zinc-400 flex items-center justify-between">
+                              <span>TIMELINE_HISTORI_LANGKAH ({liveSteps.length})</span>
+                              <span className="text-[10px] text-zinc-600">KLIK KARTU UNTUK INSPEKSI</span>
+                            </div>
+
+                            <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                              {[...liveSteps].reverse().map((step) => {
+                                const isLatest = latestStep?.step === step.step;
+                                return (
+                                  <div
+                                    key={step.step}
+                                    onClick={() => setActivePreviewStep(step)}
+                                    className={`p-2 border flex items-center justify-between cursor-pointer transition ${
+                                      isLatest
+                                        ? 'border-emerald-700/60 bg-emerald-950/20'
+                                        : 'border-zinc-850 bg-black hover:border-zinc-700'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2.5">
+                                      <span className="font-bold text-zinc-300 text-[11px]">
+                                        #{String(step.step).padStart(2, '0')}
+                                      </span>
+                                      <span className="text-[10px] px-1 py-0.5 border border-zinc-800 bg-zinc-900 text-zinc-300">
+                                        {step.type}
+                                      </span>
+                                      <span className="text-zinc-200 text-xs font-semibold truncate max-w-[240px]">
+                                        {step.label}
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      {step.isRedacted && (
+                                        <span className="text-[9px] text-amber-400 border border-amber-900 px-1">
+                                          REDACTED
+                                        </span>
+                                      )}
+                                      <div className="w-6 h-4 border border-zinc-800 bg-zinc-900 overflow-hidden">
+                                        <img
+                                          src={`/recordings/${liveSession?.folder}/${step.actionFile}`}
+                                          alt="thumb"
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                       )}
-                    </div>
+
+                      {/* VIEW MODE 2: EMBEDDED LIVE GUIDE FRAME */}
+                      {previewMode === 'guide_frame' && (
+                        <div className="flex-1 flex flex-col bg-black">
+                          {liveSession?.folder && liveSession?.hasHtml ? (
+                            <iframe
+                              src={`/recordings/${liveSession.folder}/index.html`}
+                              title="Live SOP Preview"
+                              className="w-full flex-1 border-0 min-h-[460px]"
+                            />
+                          ) : (
+                            <div className="flex-1 flex items-center justify-center p-8 text-zinc-600">
+                              File index.html belum terbuat atau folder belum dipilih.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

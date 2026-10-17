@@ -5,7 +5,9 @@ import { checkPlaywright } from './preflight.mjs';
 export class BrowserManager {
   constructor(options = {}) {
     this.url = options.url || 'https://example.com';
-    this.stateFile = options.stateFile;
+    this.outDir = options.outDir;
+    // Prioritize auth_state inside outDir, fallback to profile stateFile
+    this.stateFile = (this.outDir ? path.join(this.outDir, '.auth_state.json') : null) || options.stateFile;
     this.login = options.login;
     this.password = options.password;
     this.headless = options.headless ?? false;
@@ -23,12 +25,24 @@ export class BrowserManager {
     });
 
     const contextOpts = { viewport: null };
+
+    // Restore persistent session cookies & localStorage if available
     if (this.stateFile && fs.existsSync(this.stateFile)) {
-      contextOpts.storageState = this.stateFile;
+      try {
+        console.log(`\x1b[36m[Session State]\x1b[0m Memulihkan session cookies dari: \x1b[33m${path.basename(this.stateFile)}\x1b[0m`);
+        contextOpts.storageState = this.stateFile;
+      } catch (err) {
+        console.error('Gagal membaca storageState tersimpan:', err.message);
+      }
     }
 
     this.context = await this.browser.newContext(contextOpts);
     this.page = await this.context.newPage();
+
+    // Auto-save storageState whenever user navigates or interacts
+    this.page.on('close', async () => {
+      await this.saveStorageState().catch(() => {});
+    });
 
     console.log(`Membuka URL target: \x1b[34m${this.url}\x1b[0m...`);
     await this.page.goto(this.url).catch(() => {});
@@ -42,18 +56,26 @@ export class BrowserManager {
       await this.page.click("button[type='submit']").catch(() => {});
       await this.page.waitForLoadState('domcontentloaded').catch(() => {});
       await this.page.waitForTimeout(2000);
-
-      if (this.stateFile) {
-        fs.mkdirSync(path.dirname(this.stateFile), { recursive: true });
-        await this.context.storageState({ path: this.stateFile });
-        console.log('Session state berhasil disimpan.');
-      }
+      await this.saveStorageState();
     }
 
     return { browser: this.browser, context: this.context, page: this.page };
   }
 
+  async saveStorageState() {
+    if (this.context && this.stateFile) {
+      try {
+        fs.mkdirSync(path.dirname(this.stateFile), { recursive: true });
+        await this.context.storageState({ path: this.stateFile });
+        console.log(`\x1b[32m[Session State]\x1b[0m Cookie & session kredensial tersimpan ke: \x1b[34m${path.basename(this.stateFile)}\x1b[0m`);
+      } catch (err) {
+        // Context might have already been destroyed on browser exit
+      }
+    }
+  }
+
   async close() {
+    await this.saveStorageState().catch(() => {});
     if (this.browser) {
       await this.browser.close().catch(() => {});
     }

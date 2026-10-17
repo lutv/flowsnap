@@ -16,6 +16,8 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+*.auth_state.json
+.auth_state.json
 flowsnap.json
 .flowsnap/
 .local-scribe/

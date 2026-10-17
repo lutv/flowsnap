@@ -109,6 +109,7 @@ async function handleStart(params) {
 
   const browserMgr = new BrowserManager({
     url: targetUrl,
+    outDir: outDir,
     stateFile: prof.stateFile,
     headless: false
   });
