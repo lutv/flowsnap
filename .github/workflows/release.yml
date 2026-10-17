@@ -7,18 +7,18 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name for release (e.g. v1.0.0-beta.1)'
+        description: 'Tag name for release (e.g. v1.0.0-beta.2)'
         required: false
-        default: 'v1.0.0-beta.1'
+        default: 'v1.0.0-beta.2'
 
 permissions:
   contents: write
 
 jobs:
   # --------------------------------------------------------------------------
-  # 1. Package Universal CLI + Web Studio Bundle
+  # 1. Build Universal CLI + Agent Bundle
   # --------------------------------------------------------------------------
-  release-cli:
+  build-cli:
     name: Package Universal CLI & Agent Bundle
     runs-on: ubuntu-latest
 
@@ -72,59 +72,20 @@ jobs:
           tar -czf "${DIST_DIR}.tar.gz" "$DIST_DIR"
           zip -rq "${DIST_DIR}.zip" "$DIST_DIR"
 
-          # Generate Checksums
-          sha256sum "${DIST_DIR}.tar.gz" "${DIST_DIR}.zip" > SHA256SUMS.txt
+          mkdir -p dist-cli
+          mv "${DIST_DIR}.tar.gz" "${DIST_DIR}.zip" dist-cli/
 
-      - name: Create or Update GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload CLI Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ steps.vars.outputs.tag }}
-          name: FlowSnap ${{ steps.vars.outputs.tag }}
-          draft: false
-          prerelease: ${{ contains(steps.vars.outputs.tag, '-') }}
-          generate_release_notes: true
-          files: |
-            flowsnap-${{ steps.vars.outputs.tag }}.tar.gz
-            flowsnap-${{ steps.vars.outputs.tag }}.zip
-            SHA256SUMS.txt
-          body: |
-            ## 📸 FlowSnap ${{ steps.vars.outputs.tag }} — Autonomous UI Action Recorder & Intelligent SOP Synthesizer
-
-            ### 💻 Download Aplikasi Desktop Native:
-            - **Windows**: `flowsnap_${{ steps.vars.outputs.tag }}_x64-setup.exe` / `.msi`
-            - **Linux**: `flowsnap_${{ steps.vars.outputs.tag }}_amd64.deb` / `.AppImage`
-            - **macOS**: `flowsnap_${{ steps.vars.outputs.tag }}_universal.dmg`
-
-            ---
-
-            ### ✨ Fitur Unggulan
-            - **Dual-Capture Technology**: Tangkapan layar otomatis sebelum (*action*) dan sesudah (*result*) setiap aksi klik / submit.
-            - **Privacy First & Auto-Redaction**: Penyamaran otomatis elemen sensitif (*passwords, tokens, PINs, personal info*) menggunakan DOM blurring dan metadata sanitization.
-            - **Ergonomic Studio (Dark & Light Mode)**: Dashboard web interaktif dengan live telemetry capture stream, viewer SOP mandiri, dan image lightbox zoom.
-            - **🤖 One-Command AI Agent Setup**: Otomatis mengonfigurasi **MCP Server** dan **Skill** ke dalam coding agent Anda (**Antigravity**, **Claude Desktop**, **Cursor**, **Windsurf**).
-
-            ---
-
-            ### 🚀 Panduan Instalasi Cepat (CLI & Server)
-
-            ```bash
-            # Download & Extract
-            tar -xzf flowsnap-${{ steps.vars.outputs.tag }}.tar.gz
-            cd flowsnap-${{ steps.vars.outputs.tag }}
-
-            # Jalankan Installer (Otomatis Pasang CLI, MCP Server, & Skill)
-            ./scripts/install.sh
-
-            # Jalankan Studio
-            flowsnap start
-            ```
+          name: dist-cli
+          path: dist-cli/*
 
   # --------------------------------------------------------------------------
   # 2. Build Native Desktop Applications (.exe, .deb, .AppImage, .dmg)
   # --------------------------------------------------------------------------
-  release-desktop:
+  build-desktop:
     name: Build Desktop Installer (${{ matrix.platform }})
-    needs: release-cli
     strategy:
       fail-fast: false
       matrix:
@@ -134,7 +95,7 @@ jobs:
           - platform: 'windows-latest'
             args: ''
           - platform: 'macos-latest'
-            args: '--target universal-apple-darwin'
+            args: '-- --target universal-apple-darwin'
 
     runs-on: ${{ matrix.platform }}
 
@@ -172,9 +133,36 @@ jobs:
       - name: Build Web Studio (UI)
         run: npm run ui:build
 
+      - name: Build Tauri Desktop Bundle
+        run: npm run tauri build ${{ matrix.args }}
+
+      - name: Prepare Artifacts Directory
+        shell: bash
+        run: |
+          mkdir -p dist-desktop
+          find src-tauri/target -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.exe" -o -name "*.msi" -o -name "*.dmg" \) -exec cp {} dist-desktop/ \;
+          ls -la dist-desktop/
+
+      - name: Upload Desktop Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-desktop-${{ matrix.platform }}
+          path: dist-desktop/*
+
+  # --------------------------------------------------------------------------
+  # 3. Publish Single Atomic GitHub Release
+  # --------------------------------------------------------------------------
+  publish-release:
+    name: Publish Official GitHub Release
+    needs: [build-cli, build-desktop]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Determine version tag
         id: vars
-        shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ github.event.inputs.tag_name }}"
@@ -183,13 +171,55 @@ jobs:
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Build Tauri Desktop Installers (.deb, .AppImage, .exe, .dmg)
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
         with:
-          tagName: ${{ steps.vars.outputs.tag }}
-          releaseName: 'FlowSnap ${{ steps.vars.outputs.tag }}'
-          releaseDraft: false
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate Checksums for All Assets
+        working-directory: release-assets
+        run: |
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: FlowSnap ${{ steps.vars.outputs.tag }}
+          draft: false
           prerelease: ${{ contains(steps.vars.outputs.tag, '-') }}
-          args: ${{ matrix.args }}
+          generate_release_notes: true
+          files: release-assets/*
+          body: |
+            ## 📸 FlowSnap ${{ steps.vars.outputs.tag }} — Autonomous UI Action Recorder & Intelligent SOP Synthesizer
+
+            ### 💻 Download Aplikasi Desktop Native:
+            - **Windows**: `flowsnap_*_x64-setup.exe` / `.msi`
+            - **Linux**: `flowsnap_*_amd64.deb` / `.AppImage`
+            - **macOS**: `flowsnap_*_universal.dmg`
+
+            ---
+
+            ### ✨ Fitur Unggulan
+            - **Dual-Capture Technology**: Tangkapan layar otomatis sebelum (*action*) dan sesudah (*result*) setiap aksi klik / submit.
+            - **Privacy First & Auto-Redaction**: Penyamaran otomatis elemen sensitif (*passwords, tokens, PINs, personal info*) menggunakan DOM blurring dan metadata sanitization.
+            - **Ergonomic Studio (Dark & Light Mode)**: Dashboard web interaktif dengan live telemetry capture stream, viewer SOP mandiri, dan image lightbox zoom.
+            - **🤖 One-Command AI Agent Setup**: Otomatis mengonfigurasi **MCP Server** dan **Skill** ke dalam coding agent Anda (**Antigravity**, **Claude Desktop**, **Cursor**, **Windsurf**).
+
+            ---
+
+            ### 🚀 Panduan Instalasi Cepat (CLI & Server)
+
+            ```bash
+            # Download & Extract
+            tar -xzf flowsnap-${{ steps.vars.outputs.tag }}.tar.gz
+            cd flowsnap-${{ steps.vars.outputs.tag }}
+
+            # Jalankan Installer (Otomatis Pasang CLI, MCP Server, & Skill)
+            ./scripts/install.sh
+
+            # Jalankan Studio
+            flowsnap start
+            ```
