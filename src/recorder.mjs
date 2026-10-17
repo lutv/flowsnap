@@ -48,6 +48,11 @@ export class ActionRecorder {
     });
 
     await this.page.addInitScript(this.getClientScript());
+
+    // Also evaluate immediately on existing document if already loaded
+    try {
+      await this.page.evaluate(this.getClientScript());
+    } catch {}
   }
 
   async processQueue() {
@@ -248,6 +253,12 @@ export class ActionRecorder {
 
   getClientScript() {
     return () => {
+      if (window.__flowSnapInjected) {
+        if (typeof injectHUD === 'function') injectHUD();
+        return;
+      }
+      window.__flowSnapInjected = true;
+
       function isSensitiveElement(el) {
         if (!el) return false;
         if (el.type === 'password') return true;
@@ -485,6 +496,15 @@ export class ActionRecorder {
         document.addEventListener('DOMContentLoaded', injectHUD);
       } else {
         injectHUD();
+      }
+
+      // Keep HUD persistent across dynamic Single Page Application (SPA) DOM resets (e.g. Odoo OWL, React, Vue)
+      if (!window.__flowSnapHudInterval) {
+        window.__flowSnapHudInterval = setInterval(() => {
+          if (!document.getElementById('flowsnap-floating-hud') && document.body) {
+            injectHUD();
+          }
+        }, 800);
       }
     };
   }

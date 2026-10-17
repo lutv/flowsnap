@@ -128,7 +128,7 @@ async function handleStart(params) {
     headless: false
   });
 
-  const { page, browser } = await browserMgr.launch();
+  const { page, browser } = await browserMgr.launch({ autoNavigate: false });
 
   const generator = new GuideGenerator(outDir, { title });
   const recorder = new ActionRecorder(page, {
@@ -143,6 +143,7 @@ async function handleStart(params) {
   });
 
   await recorder.attach();
+  await browserMgr.navigateToTarget();
 
   console.log('\n\x1b[1m\x1b[32m%s\x1b[0m', '✅ BROWSER SIAP DIGUNAKAN!');
   console.log('- Klik elemen apa saja: Action + Result otomatis ter-capture.');

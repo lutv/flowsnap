@@ -65,6 +65,14 @@ export class BrowserManager {
       await this.saveStorageState().catch(() => {});
     });
 
+    if (options.autoNavigate !== false) {
+      await this.navigateToTarget();
+    }
+
+    return { browser: this.browser, context: this.context, page: this.page };
+  }
+
+  async navigateToTarget() {
     console.log(`Membuka URL target: \x1b[34m${this.url}\x1b[0m...`);
     await this.page.goto(this.url).catch(() => {});
     await this.page.waitForTimeout(1500);
@@ -79,8 +87,6 @@ export class BrowserManager {
       await this.page.waitForTimeout(2000);
       await this.saveStorageState();
     }
-
-    return { browser: this.browser, context: this.context, page: this.page };
   }
 
   async saveStorageState() {
