@@ -28,7 +28,10 @@ import {
   Camera,
   Radio,
   Clock,
-  Activity
+  Activity,
+  Edit3,
+  Save,
+  HardDrive
 } from 'lucide-react';
 
 export default function App() {
@@ -60,8 +63,15 @@ export default function App() {
   // Inline Viewer / Modal State
   const [inspectRecording, setInspectRecording] = useState(null); // folder id to inspect
   const [inspectDetail, setInspectDetail] = useState(null);
-  const [inspectViewMode, setInspectViewMode] = useState('iframe'); // 'iframe' | 'steps' | 'markdown'
+  const [inspectViewMode, setInspectViewMode] = useState('iframe'); // 'iframe' | 'steps' | 'markdown' | 'files'
   const [copiedMarkdown, setCopiedMarkdown] = useState(false);
+  const [isEditingMarkdown, setIsEditingMarkdown] = useState(false);
+  const [editedMarkdown, setEditedMarkdown] = useState('');
+  const [savingMarkdown, setSavingMarkdown] = useState(false);
+
+  // Global Notification & Path Copy Toast
+  const [toastMsg, setToastMsg] = useState(null);
+  const [copiedPath, setCopiedPath] = useState(null);
 
   // Lightbox Modal for Full Image Zoom
   const [lightboxImg, setLightboxImg] = useState(null);
@@ -72,6 +82,63 @@ export default function App() {
   const [loadingLib, setLoadingLib] = useState(false);
   const [expandedBrowseId, setExpandedBrowseId] = useState(null);
   const [browsingStepIndex, setBrowsingStepIndex] = useState({});
+
+  // Helper: Open folder in OS File Manager (Finder / Nautilus / Explorer)
+  const openInFileManager = async (folder) => {
+    try {
+      const res = await fetch(`/api/open-folder?folder=${encodeURIComponent(folder || '')}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal membuka folder di file manager');
+      setToastMsg(`Folder dibuka di file manager: ${data.path}`);
+      setTimeout(() => setToastMsg(null), 4000);
+    } catch (err) {
+      setErrorMsg(`Gagal membuka file manager: ${err.message}`);
+    }
+  };
+
+  // Helper: Copy path to clipboard
+  const copyPathToClipboard = (pathStr, id) => {
+    if (!pathStr) return;
+    navigator.clipboard.writeText(pathStr);
+    setCopiedPath(id);
+    setToastMsg(`Path disalin: ${pathStr}`);
+    setTimeout(() => {
+      setCopiedPath(null);
+      setToastMsg(null);
+    }, 2500);
+  };
+
+  // Helper: Save custom edited markdown SOP
+  const saveCustomMarkdown = async (folder) => {
+    setSavingMarkdown(true);
+    try {
+      const res = await fetch('/api/save-markdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder, markdown: editedMarkdown })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan markdown');
+      setToastMsg('SOP GUIDE.md berhasil diperbarui di disk!');
+      setIsEditingMarkdown(false);
+      setInspectDetail((prev) => ({ ...prev, markdown: editedMarkdown }));
+      loadRecordings();
+      setTimeout(() => setToastMsg(null), 3000);
+    } catch (err) {
+      setErrorMsg(err.message);
+    } finally {
+      setSavingMarkdown(false);
+    }
+  };
+
+  // Helper: Format bytes to human readable
+  const formatBytes = (bytes) => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+  };
 
   // Profiles State
   const [profiles, setProfiles] = useState([
@@ -129,11 +196,13 @@ export default function App() {
   // 3. Inspect a specific recording in modal
   const openInspector = async (recId) => {
     setInspectRecording(recId);
+    setIsEditingMarkdown(false);
     try {
       const res = await fetch(`/api/recording/${recId}`);
       if (res.ok) {
         const data = await res.json();
         setInspectDetail(data);
+        setEditedMarkdown(data.markdown || '');
       }
     } catch (err) {
       console.error(err);
@@ -317,6 +386,19 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-6xl w-full mx-auto p-5 space-y-6">
+        {/* Success / Info Toast Notification */}
+        {toastMsg && (
+          <div className="p-2.5 border border-emerald-700 bg-emerald-950/40 text-emerald-300 flex items-center justify-between text-xs animate-in fade-in duration-150">
+            <span className="flex items-center gap-2 truncate">
+              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              {toastMsg}
+            </span>
+            <button onClick={() => setToastMsg(null)} className="text-zinc-400 hover:text-white ml-2 text-[10px] shrink-0">
+              [X]
+            </button>
+          </div>
+        )}
+
         {/* Error Notification */}
         {errorMsg && (
           <div className="p-3 border border-red-800 bg-red-950/30 text-red-300 flex items-center justify-between">
@@ -381,7 +463,18 @@ export default function App() {
                   {/* Output Dir & Profile */}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-zinc-400 text-[11px] mb-1">OUTPUT_DIR</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-zinc-400 text-[11px]">OUTPUT_DIR</label>
+                        <button
+                          type="button"
+                          onClick={() => openInFileManager(outFolder)}
+                          className="text-zinc-500 hover:text-zinc-300 text-[10px] flex items-center gap-1 transition"
+                          title="Buka folder direktori di OS File Manager (Finder / Nautilus)"
+                        >
+                          <Folder className="w-2.5 h-2.5" />
+                          [FINDER]
+                        </button>
+                      </div>
                       <div className="flex items-center border border-zinc-800 bg-black px-2">
                         <span className="text-zinc-600">./recordings/</span>
                         <input
@@ -523,6 +616,17 @@ export default function App() {
                     </div>
 
                     <div className="flex items-center gap-1.5 text-[10px]">
+                      {liveSession?.folder && !dismissedSession && (
+                        <button
+                          onClick={() => openInFileManager(liveSession.folder)}
+                          className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 flex items-center gap-1 transition text-[11px]"
+                          title="Buka folder rekaman ini di OS File Manager (Finder / Nautilus)"
+                        >
+                          <Folder className="w-3 h-3 text-zinc-400" />
+                          FINDER
+                        </button>
+                      )}
+
                       {!isRecording && liveSession?.folder && !dismissedSession && (
                         <>
                           <button
@@ -558,6 +662,28 @@ export default function App() {
                       )}
                     </div>
                   </div>
+
+                  {/* Sub-header: Absolute Path & One-Click Copy */}
+                  {liveSession?.folder && !dismissedSession && (
+                    <div className="px-3.5 py-1.5 border-b border-zinc-850 bg-black/60 flex items-center justify-between text-[10px] font-mono text-zinc-500">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="text-zinc-600">SOURCE:</span>
+                        <span className="text-zinc-400 truncate select-all">
+                          {liveSession.absolutePath || `./recordings/${liveSession.folder}`}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => copyPathToClipboard(liveSession.absolutePath || `./recordings/${liveSession.folder}`, 'live')}
+                          className="hover:text-zinc-200 flex items-center gap-1 text-[10px]"
+                          title="Salin path direktori ke clipboard"
+                        >
+                          {copiedPath === 'live' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedPath === 'live' ? 'COPIED' : 'COPY'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Body: Dismissed State vs Active Monitor Stream */}
                   {dismissedSession && !isRecording ? (
@@ -865,12 +991,30 @@ export default function App() {
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] text-zinc-500 font-mono">
-                              {rec.outDir} • {new Date(rec.updatedAt).toLocaleString('id-ID')}
+                            <div className="text-[11px] text-zinc-500 font-mono flex items-center gap-1.5 flex-wrap">
+                              <span>{rec.outDir} • {new Date(rec.updatedAt).toLocaleString('id-ID')}</span>
+                              <span className="text-zinc-700">|</span>
+                              <button
+                                onClick={() => copyPathToClipboard(rec.absolutePath || rec.outDir, rec.id)}
+                                className="text-zinc-400 hover:text-zinc-200 flex items-center gap-1 text-[10px] transition"
+                                title={`Salin absolute path: ${rec.absolutePath || rec.outDir}`}
+                              >
+                                {copiedPath === rec.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                <span>{copiedPath === rec.id ? 'PATH_COPIED' : 'COPY_PATH'}</span>
+                              </button>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => openInFileManager(rec.id)}
+                              className="px-2.5 py-1 border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 font-semibold text-[11px] flex items-center gap-1.5 transition"
+                              title="Buka folder rekaman ini di OS File Manager (Finder / Nautilus / Explorer)"
+                            >
+                              <Folder className="w-3.5 h-3.5 text-zinc-400" />
+                              FINDER
+                            </button>
+
                             {totalSteps > 0 && (
                               <button
                                 onClick={() => setExpandedBrowseId(isExpanded ? null : rec.id)}
@@ -999,6 +1143,14 @@ export default function App() {
                                 >
                                   NEXT
                                   <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => openInFileManager(rec.id)}
+                                  className="px-2 py-1 border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white text-[11px] flex items-center gap-1 font-mono transition"
+                                  title="Buka folder direktori rekaman ini di OS File Manager (Finder / Nautilus)"
+                                >
+                                  <Folder className="w-3.5 h-3.5 text-zinc-400" />
+                                  FINDER
                                 </button>
                                 <button
                                   onClick={() => setExpandedBrowseId(null)}
@@ -1252,7 +1404,7 @@ export default function App() {
                 </span>
               </div>
 
-              {/* View Switcher */}
+              {/* View Switcher & Action Controls */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center border border-zinc-800 bg-black p-0.5 text-[10px]">
                   <button
@@ -1277,9 +1429,26 @@ export default function App() {
                       inspectViewMode === 'markdown' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400'
                     }`}
                   >
-                    GUIDE.MD
+                    GUIDE.MD {isEditingMarkdown ? '(EDIT)' : ''}
+                  </button>
+                  <button
+                    onClick={() => setInspectViewMode('files')}
+                    className={`px-2 py-0.5 transition ${
+                      inspectViewMode === 'files' ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400'
+                    }`}
+                  >
+                    SOURCE_FILES ({inspectDetail.files ? inspectDetail.files.length : 0})
                   </button>
                 </div>
+
+                <button
+                  onClick={() => openInFileManager(inspectDetail.id)}
+                  className="px-2 py-1 border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 flex items-center gap-1 text-[11px] font-semibold transition"
+                  title="Buka direktori rekaman ini di OS File Manager (Finder / Nautilus)"
+                >
+                  <Folder className="w-3.5 h-3.5 text-zinc-400" />
+                  FINDER
+                </button>
 
                 <a
                   href={`/recordings/${inspectDetail.id}/index.html`}
@@ -1295,6 +1464,7 @@ export default function App() {
                   onClick={() => {
                     setInspectRecording(null);
                     setInspectDetail(null);
+                    setIsEditingMarkdown(false);
                   }}
                   className="p-1 border border-zinc-800 hover:bg-zinc-800 text-zinc-300"
                 >
@@ -1355,21 +1525,199 @@ export default function App() {
                 </div>
               )}
 
+              {/* GUIDE.MD View & Live Editor */}
               {inspectViewMode === 'markdown' && (
                 <div className="h-full flex flex-col p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-400 text-[11px]">MARKDOWN SOURCE (GUIDE.MD)</span>
-                    <button
-                      onClick={() => copyMarkdownText(inspectDetail.markdown)}
-                      className="px-2 py-1 border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 flex items-center gap-1"
-                    >
-                      {copiedMarkdown ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      {copiedMarkdown ? 'COPIED' : 'COPY_MARKDOWN'}
-                    </button>
+                  <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-300 font-bold text-[11px]">MARKDOWN SOURCE (GUIDE.MD)</span>
+                      {isEditingMarkdown && (
+                        <span className="text-[10px] text-amber-400 border border-amber-800 bg-amber-950/40 px-1.5 py-0.5">
+                          MODE_EDIT_AKTIF
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!isEditingMarkdown ? (
+                        <>
+                          <button
+                            onClick={() => {
+                              setEditedMarkdown(inspectDetail.markdown || '');
+                              setIsEditingMarkdown(true);
+                            }}
+                            className="px-2.5 py-1 border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 flex items-center gap-1 font-semibold text-[11px] transition"
+                            title="Edit dan kustomisasi teks dokumen SOP ini"
+                          >
+                            <Edit3 className="w-3 h-3 text-zinc-400" />
+                            EDIT_SOP
+                          </button>
+                          <button
+                            onClick={() => copyMarkdownText(inspectDetail.markdown)}
+                            className="px-2 py-1 border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 flex items-center gap-1 text-[11px]"
+                          >
+                            {copiedMarkdown ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                            {copiedMarkdown ? 'COPIED' : 'COPY'}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => setIsEditingMarkdown(false)}
+                            className="px-2 py-1 border border-zinc-800 hover:bg-zinc-850 text-zinc-400 hover:text-white text-[11px]"
+                          >
+                            BATAL
+                          </button>
+                          <button
+                            disabled={savingMarkdown}
+                            onClick={() => saveCustomMarkdown(inspectDetail.id)}
+                            className="px-2.5 py-1 bg-emerald-900 hover:bg-emerald-800 border border-emerald-600 text-emerald-100 font-bold flex items-center gap-1 text-[11px] transition"
+                          >
+                            <Save className="w-3 h-3" />
+                            {savingMarkdown ? 'MENYIMPAN...' : 'SIMPAN_KE_DISK'}
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <pre className="flex-1 bg-black p-4 border border-zinc-850 overflow-y-auto text-[11px] text-zinc-300 font-mono whitespace-pre-wrap select-all">
-                    {inspectDetail.markdown || '# Guide markdown belum ada'}
-                  </pre>
+
+                  {isEditingMarkdown ? (
+                    <textarea
+                      value={editedMarkdown}
+                      onChange={(e) => setEditedMarkdown(e.target.value)}
+                      className="flex-1 bg-black p-4 border border-zinc-700 focus:border-zinc-500 outline-none text-[11px] text-zinc-200 font-mono resize-none leading-relaxed"
+                      placeholder="Tulis kustomisasi dokumen SOP markdown disini..."
+                    />
+                  ) : (
+                    <pre className="flex-1 bg-black p-4 border border-zinc-850 overflow-y-auto text-[11px] text-zinc-300 font-mono whitespace-pre-wrap select-all leading-relaxed">
+                      {inspectDetail.markdown || '# Guide markdown belum ada'}
+                    </pre>
+                  )}
+                </div>
+              )}
+
+              {/* SOURCE_FILES Raw Asset Explorer */}
+              {inspectViewMode === 'files' && (
+                <div className="h-full flex flex-col p-4 space-y-3 overflow-y-auto">
+                  {/* Source Directory Banner */}
+                  <div className="border border-zinc-800 bg-black p-3 space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-zinc-500 font-mono block">DIREKTORI SUMBER (DISK):</span>
+                        <code className="text-zinc-200 font-mono text-xs select-all">
+                          {inspectDetail.absolutePath || `./recordings/${inspectDetail.id}`}
+                        </code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => copyPathToClipboard(inspectDetail.absolutePath || `./recordings/${inspectDetail.id}`, 'modal-path')}
+                          className="px-2.5 py-1 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 text-[11px] flex items-center gap-1 transition"
+                        >
+                          {copiedPath === 'modal-path' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          {copiedPath === 'modal-path' ? 'COPIED' : 'SALIN_PATH'}
+                        </button>
+                        <button
+                          onClick={() => openInFileManager(inspectDetail.id)}
+                          className="px-2.5 py-1 bg-zinc-100 hover:bg-white text-black font-semibold text-[11px] flex items-center gap-1.5 transition"
+                          title="Buka direktori ini di Finder / File Manager sistem operasi"
+                        >
+                          <Folder className="w-3.5 h-3.5" />
+                          BUKA_DI_FINDER
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 pt-1 border-t border-zinc-850">
+                      💡 <strong>Tip Kustomisasi:</strong> Anda dapat langsung mengedit file di Finder/File Manager (mengganti screenshot PNG, menambahkan catatan di GUIDE.md, atau mengelola aset gambar).
+                    </p>
+                  </div>
+
+                  {/* Files Table */}
+                  <div className="border border-zinc-800 bg-black flex-1 overflow-x-auto">
+                    <div className="p-2 border-b border-zinc-850 bg-zinc-900/50 flex items-center justify-between font-bold text-zinc-300 text-[11px]">
+                      <span>DAFTAR FILE ({inspectDetail.files ? inspectDetail.files.length : 0} ITEM)</span>
+                      <span className="text-zinc-500 font-normal text-[10px]">KLIK GAMBAR UNTUK ZOOM</span>
+                    </div>
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-zinc-850 text-[10px] text-zinc-500 bg-zinc-950">
+                          <th className="p-2.5">FILE NAME</th>
+                          <th className="p-2.5">EXT</th>
+                          <th className="p-2.5">SIZE</th>
+                          <th className="p-2.5">MODIFIED</th>
+                          <th className="p-2.5 text-right">AKSI</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-900 font-mono text-[11px]">
+                        {inspectDetail.files && inspectDetail.files.length > 0 ? (
+                          inspectDetail.files.map((f) => (
+                            <tr key={f.name} className="hover:bg-zinc-900/40 transition">
+                              <td className="p-2.5 flex items-center gap-2">
+                                {f.ext === '.png' && (
+                                  <img
+                                    src={f.url}
+                                    alt={f.name}
+                                    onClick={() => setLightboxImg(f.url)}
+                                    className="w-7 h-5 object-cover border border-zinc-800 cursor-zoom-in"
+                                  />
+                                )}
+                                {f.ext === '.md' && <FileText className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+                                {f.ext === '.html' && <ExternalLink className="w-4 h-4 text-blue-400 flex-shrink-0" />}
+                                {f.ext === '.json' && <Code className="w-4 h-4 text-amber-400 flex-shrink-0" />}
+                                <span className="text-zinc-200 truncate select-all">{f.name}</span>
+                              </td>
+                              <td className="p-2.5 text-zinc-400 uppercase text-[10px]">{f.ext.replace('.', '') || 'DIR'}</td>
+                              <td className="p-2.5 text-zinc-400">{formatBytes(f.size)}</td>
+                              <td className="p-2.5 text-zinc-500 text-[10px]">{new Date(f.mtime).toLocaleString('id-ID')}</td>
+                              <td className="p-2.5 text-right space-x-1">
+                                {f.ext === '.png' && (
+                                  <button
+                                    onClick={() => setLightboxImg(f.url)}
+                                    className="px-2 py-0.5 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 text-[10px]"
+                                  >
+                                    ZOOM
+                                  </button>
+                                )}
+                                {f.ext === '.html' && (
+                                  <a
+                                    href={f.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-2 py-0.5 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 text-[10px] inline-block"
+                                  >
+                                    OPEN
+                                  </a>
+                                )}
+                                {f.ext === '.md' && (
+                                  <button
+                                    onClick={() => {
+                                      setEditedMarkdown(inspectDetail.markdown || '');
+                                      setInspectViewMode('markdown');
+                                      setIsEditingMarkdown(true);
+                                    }}
+                                    className="px-2 py-0.5 border border-emerald-900 bg-emerald-950/40 text-emerald-300 text-[10px]"
+                                  >
+                                    EDIT
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => copyPathToClipboard(f.name, f.name)}
+                                  className="px-2 py-0.5 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 text-[10px]"
+                                  title="Salin nama file"
+                                >
+                                  {copiedPath === f.name ? 'COPIED' : 'NAME'}
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="5" className="p-6 text-center text-zinc-600">
+                              Memuat daftar file sumber...
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>

@@ -12,7 +12,7 @@ function flowsnapApiPlugin() {
   return {
     name: 'flowsnap-api',
     configureServer(server) {
-      server.middlewares.use((req, res, next) => {
+      server.middlewares.use(async (req, res, next) => {
         const rootDir = path.resolve(process.cwd(), '..');
 
         // 1. Static file serving for /recordings/*
@@ -92,6 +92,7 @@ function flowsnapApiPlugin() {
             pid: activeProcess?.pid || null,
             folder: targetFolder,
             outDir: targetFolder ? `./recordings/${targetFolder}` : null,
+            absolutePath: targetFolder ? path.resolve(rootDir, 'recordings', targetFolder) : null,
             session: activeSessionData || (targetFolder ? { outDir: `./recordings/${targetFolder}`, title: targetFolder } : null),
             steps,
             totalSteps: steps.length,
@@ -279,6 +280,7 @@ function flowsnapApiPlugin() {
                   stepsCount: count,
                   updatedAt: mtime,
                   outDir: `./recordings/${d.name}`,
+                  absolutePath: dirPath,
                   hasGuide: fs.existsSync(guideMd),
                   hasHtml: fs.existsSync(guideHtml),
                   viewerUrl: `/recordings/${d.name}/index.html`,
@@ -293,7 +295,7 @@ function flowsnapApiPlugin() {
           return;
         }
 
-        // 7. Get Single Recording Detail with Markdown Content
+        // 7. Get Single Recording Detail with Markdown Content & Source Files List
         if (req.url.startsWith('/api/recording/') && req.method === 'GET') {
           const folderName = decodeURIComponent(req.url.replace('/api/recording/', '').split('?')[0]);
           const dirPath = path.join(rootDir, 'recordings', folderName);
@@ -318,15 +320,110 @@ function flowsnapApiPlugin() {
             try { markdown = fs.readFileSync(guideMd, 'utf-8'); } catch {}
           }
 
+          let files = [];
+          try {
+            files = fs.readdirSync(dirPath, { withFileTypes: true }).map(item => {
+              const itemPath = path.join(dirPath, item.name);
+              const stat = fs.statSync(itemPath);
+              return {
+                name: item.name,
+                isDirectory: item.isDirectory(),
+                size: stat.size,
+                mtime: stat.mtime.toISOString(),
+                ext: path.extname(item.name).toLowerCase(),
+                url: `/recordings/${folderName}/${item.name}`
+              };
+            }).sort((a, b) => {
+              if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+              return a.name.localeCompare(b.name);
+            });
+          } catch {}
+
           res.setHeader('Content-Type', 'application/json');
           res.end(JSON.stringify({
             id: folderName,
+            absolutePath: dirPath,
             steps,
             markdown,
+            files,
             hasHtml: fs.existsSync(guideHtml),
             hasMd: fs.existsSync(guideMd),
             viewerUrl: `/recordings/${folderName}/index.html`
           }));
+          return;
+        }
+
+        // 8. Open Folder in Native OS File Manager (Finder / Nautilus / Explorer)
+        if (req.url.startsWith('/api/open-folder')) {
+          let folder = '';
+          if (req.method === 'GET') {
+            const u = new URL(req.url, 'http://localhost');
+            folder = u.searchParams.get('folder') || '';
+          } else if (req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => { body += chunk; });
+            await new Promise(r => req.on('end', r));
+            try {
+              const parsed = JSON.parse(body);
+              folder = parsed.folder || '';
+            } catch {}
+          }
+
+          const targetPath = folder
+            ? (path.isAbsolute(folder) ? folder : path.resolve(rootDir, 'recordings', folder))
+            : path.resolve(rootDir, 'recordings');
+
+          if (!fs.existsSync(targetPath)) {
+            fs.mkdirSync(targetPath, { recursive: true });
+          }
+
+          const platform = process.platform;
+          let cmd = 'xdg-open';
+          if (platform === 'darwin') cmd = 'open';
+          else if (platform === 'win32') cmd = 'explorer';
+
+          try {
+            const child = spawn(cmd, [targetPath], {
+              detached: true,
+              stdio: 'ignore',
+              env: { ...process.env, DISPLAY: process.env.DISPLAY || ':0' }
+            });
+            child.unref();
+
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({
+              success: true,
+              path: targetPath,
+              platform,
+              cmd
+            }));
+          } catch (err) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message, path: targetPath }));
+          }
+          return;
+        }
+
+        // 9. Save Custom Markdown SOP
+        if (req.url === '/api/save-markdown' && req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          await new Promise(r => req.on('end', r));
+          try {
+            const { folder, markdown } = JSON.parse(body);
+            if (!folder) throw new Error('Folder name is required');
+            const targetDir = path.resolve(rootDir, 'recordings', folder);
+            if (!fs.existsSync(targetDir)) {
+              fs.mkdirSync(targetDir, { recursive: true });
+            }
+            const mdPath = path.join(targetDir, 'GUIDE.md');
+            fs.writeFileSync(mdPath, markdown, 'utf-8');
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ success: true, path: mdPath }));
+          } catch (err) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: err.message }));
+          }
           return;
         }
 
