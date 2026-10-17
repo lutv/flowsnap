@@ -83,9 +83,16 @@ function parseArgs(args) {
 }
 
 async function handleStart(params) {
+  const { resolveDataDir } = await import('../src/server.mjs');
+  const appRoot = path.resolve(fileURLToPath(import.meta.url), '../../');
+  const dataDir = resolveDataDir(appRoot);
+
   const prof = configMgr.getProfile(params.profile);
   let targetUrl = params.url || prof.url;
-  const outDir = params.outDir || prof.outDir;
+  let outDir = params.outDir || prof.outDir;
+  if (!path.isAbsolute(outDir)) {
+    outDir = path.resolve(dataDir, outDir);
+  }
   let title = params.title || prof.markdown.title;
   const autoResult = params.noResult ? false : prof.autoResult;
 

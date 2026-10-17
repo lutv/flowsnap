@@ -5,6 +5,9 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tauri::Manager;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 static ENGINE_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
 
 fn is_engine_running() -> bool {
@@ -23,15 +26,20 @@ fn try_start_engine(app: &tauri::App) {
 
   println!("[FlowSnap Rust] Detecting engine runtime & server script...");
 
-  // 1. Detect Resource Directory
+  let exe_dir = std::env::current_exe()
+    .ok()
+    .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+    .unwrap_or_else(|| PathBuf::from("."));
   let resource_dir = app.path().resource_dir().unwrap_or_else(|_| PathBuf::from("."));
-  println!("[FlowSnap Rust] Resource directory: {:?}", resource_dir);
+  println!("[FlowSnap Rust] Exe dir: {:?}, Resource dir: {:?}", exe_dir, resource_dir);
 
-  // 2. Candidate paths for node executable:
+  // 1. Candidate paths for node executable:
   let mut node_bin = PathBuf::from("node");
   let node_candidates = [
     resource_dir.join("resources").join(if cfg!(windows) { "node.exe" } else { "node" }),
     resource_dir.join(if cfg!(windows) { "node.exe" } else { "node" }),
+    exe_dir.join("resources").join(if cfg!(windows) { "node.exe" } else { "node" }),
+    exe_dir.join(if cfg!(windows) { "node.exe" } else { "node" }),
   ];
 
   for cand in &node_candidates {
@@ -42,10 +50,12 @@ fn try_start_engine(app: &tauri::App) {
     }
   }
 
-  // 3. Candidate paths for server.mjs
+  // 2. Candidate paths for server.mjs
   let server_candidates = [
     resource_dir.join("resources").join("src").join("server.mjs"),
     resource_dir.join("src").join("server.mjs"),
+    exe_dir.join("resources").join("src").join("server.mjs"),
+    exe_dir.join("src").join("server.mjs"),
     PathBuf::from("src/server.mjs"),
     PathBuf::from("../src/server.mjs"),
   ];
@@ -58,6 +68,11 @@ fn try_start_engine(app: &tauri::App) {
       let mut cmd = Command::new(&node_bin);
       cmd.arg(script).arg("--port").arg("3456");
       cmd.current_dir(working_dir);
+
+      #[cfg(windows)]
+      {
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+      }
 
       match cmd.spawn() {
         Ok(child) => {

@@ -7,6 +7,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawn, exec } from 'node:child_process';
 import { ConfigManager } from './config.mjs';
@@ -15,6 +16,49 @@ import { AgentInstaller } from './installer.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DEFAULT_ROOT_DIR = path.resolve(__dirname, '..');
+
+// -----------------------------------------------------------------------------
+// USER DATA DIRECTORY RESOLVER
+// Ensures data (recordings, configs, logs) is always written to user-writable
+// directories (~/flowsnap) rather than read-only system paths (/usr/lib, Program Files).
+// -----------------------------------------------------------------------------
+export function resolveDataDir(appDir = DEFAULT_ROOT_DIR) {
+  if (process.env.FLOWSNAP_DATA_DIR) {
+    const custom = path.resolve(process.env.FLOWSNAP_DATA_DIR);
+    try {
+      if (!fs.existsSync(custom)) fs.mkdirSync(custom, { recursive: true });
+      return custom;
+    } catch {}
+  }
+
+  const isSystemPath =
+    appDir.startsWith('/usr') ||
+    appDir.startsWith('/opt') ||
+    appDir.toLowerCase().includes('program files') ||
+    appDir.toLowerCase().includes('windows');
+
+  if (isSystemPath) {
+    const userDir = path.join(os.homedir(), 'flowsnap');
+    try {
+      if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
+      return userDir;
+    } catch {}
+  }
+
+  try {
+    const testFile = path.join(appDir, '.write_perm_test_' + Date.now());
+    fs.writeFileSync(testFile, '1');
+    fs.unlinkSync(testFile);
+    return appDir;
+  } catch {
+    const userDir = path.join(os.homedir(), 'flowsnap');
+    try {
+      if (!fs.existsSync(userDir)) fs.mkdirSync(userDir, { recursive: true });
+      return userDir;
+    } catch {}
+    return appDir;
+  }
+}
 
 // -----------------------------------------------------------------------------
 // IN-MEMORY & FILE LOG BUFFER
@@ -48,9 +92,9 @@ export function logMessage(level, message, meta = null) {
   const color = colors[entry.level] || colors.INFO;
   console.log(`${color}[${entry.level}] ${new Date().toLocaleTimeString()} ${entry.message}${colors.RESET}`);
 
-  // Append to disk log file (recordings/flowsnap.log)
+  // Append to disk log file in user data dir (e.g. ~/flowsnap/recordings/flowsnap.log)
   try {
-    const logDir = path.join(DEFAULT_ROOT_DIR, 'recordings');
+    const logDir = path.join(resolveDataDir(DEFAULT_ROOT_DIR), 'recordings');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
     const logLine = `[${entry.timestamp}] [${entry.level}] ${entry.message} ${meta ? JSON.stringify(meta) : ''}\n`;
     fs.appendFileSync(path.join(logDir, 'flowsnap.log'), logLine, 'utf-8');
@@ -78,11 +122,17 @@ function openFolderInExplorer(folderPath) {
 // -----------------------------------------------------------------------------
 export function createFlowSnapServer(options = {}) {
   const rootDir = options.rootDir || DEFAULT_ROOT_DIR;
-  const configMgr = new ConfigManager(path.join(rootDir, 'flowsnap.config.json'));
+  const dataDir = options.dataDir || resolveDataDir(rootDir);
+  const recDir = path.join(dataDir, 'recordings');
+  try {
+    if (!fs.existsSync(recDir)) fs.mkdirSync(recDir, { recursive: true });
+  } catch {}
+
+  const configMgr = new ConfigManager(path.join(dataDir, 'flowsnap.config.json'));
   let activeProcess = null;
   let activeSessionData = null;
 
-  logMessage('INFO', `FlowSnap Engine initializing with root directory: ${rootDir}`);
+  logMessage('INFO', `FlowSnap Engine initializing (App: ${rootDir}, Data: ${dataDir})`);
 
   const server = http.createServer(async (req, res) => {
     // Enable CORS for desktop webviews and external callers
@@ -99,9 +149,13 @@ export function createFlowSnapServer(options = {}) {
     const parsedUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
     const pathname = decodeURIComponent(parsedUrl.pathname);
 
-    // 1. Static file serving for /recordings/*
+    // 1. Static file serving for /recordings/* (Checks dataDir first, then rootDir fallback)
     if (pathname.startsWith('/recordings/')) {
-      let filePath = path.join(rootDir, pathname);
+      let filePath = path.join(dataDir, pathname);
+      if (!fs.existsSync(filePath)) {
+        filePath = path.join(rootDir, pathname);
+      }
+
       if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
         filePath = path.join(filePath, 'index.html');
       }
@@ -126,7 +180,6 @@ export function createFlowSnapServer(options = {}) {
 
     // Helper: get latest recording folder
     const getLatestRecordingDir = () => {
-      const recDir = path.join(rootDir, 'recordings');
       if (!fs.existsSync(recDir)) return null;
       const dirs = fs.readdirSync(recDir, { withFileTypes: true })
         .filter((d) => d.isDirectory())
@@ -153,7 +206,9 @@ export function createFlowSnapServer(options = {}) {
         status: 'online',
         isRecording: !!activeProcess,
         pid: activeProcess?.pid || null,
-        serverTime: new Date().toISOString()
+        serverTime: new Date().toISOString(),
+        dataDir,
+        appDir: rootDir
       }));
       return;
     }
@@ -173,7 +228,7 @@ export function createFlowSnapServer(options = {}) {
       let hasMd = false;
 
       if (targetFolder) {
-        const targetOut = path.resolve(rootDir, 'recordings', targetFolder);
+        const targetOut = path.resolve(recDir, targetFolder);
         const manifestPath = path.join(targetOut, 'steps.json');
         const htmlPath = path.join(targetOut, 'index.html');
         const mdPath = path.join(targetOut, 'GUIDE.md');
@@ -193,7 +248,7 @@ export function createFlowSnapServer(options = {}) {
         pid: activeProcess?.pid || null,
         folder: targetFolder,
         outDir: targetFolder ? `./recordings/${targetFolder}` : null,
-        absolutePath: targetFolder ? path.resolve(rootDir, 'recordings', targetFolder) : null,
+        absolutePath: targetFolder ? path.resolve(recDir, targetFolder) : null,
         session: activeSessionData || (targetFolder ? { outDir: `./recordings/${targetFolder}`, title: targetFolder } : null),
         steps,
         totalSteps: steps.length,
@@ -217,7 +272,8 @@ export function createFlowSnapServer(options = {}) {
       res.end(JSON.stringify({
         logs: logs.slice(-limit),
         total: logBuffer.length,
-        engineStatus: 'ONLINE'
+        engineStatus: 'ONLINE',
+        dataDir
       }));
       return;
     }
@@ -251,7 +307,8 @@ export function createFlowSnapServer(options = {}) {
         uptimeSec: Math.round(process.uptime()),
         pid: process.pid,
         platform: process.platform,
-        nodeVersion: process.version
+        nodeVersion: process.version,
+        dataDir
       }));
       return;
     }
@@ -282,12 +339,13 @@ export function createFlowSnapServer(options = {}) {
 
           const data = JSON.parse(body || '{}');
           const binPath = path.join(rootDir, 'bin', 'flowsnap.mjs');
-          const outDir = data.outDir || './recordings/default';
+          const targetFolder = data.folder || (data.outDir ? path.basename(data.outDir) : 'default');
+          const resolvedOutDir = path.resolve(recDir, targetFolder);
 
           activeSessionData = {
             url: data.url,
             title: data.title,
-            outDir,
+            outDir: resolvedOutDir,
             isResume: !!data.resume,
             startTime: new Date().toISOString()
           };
@@ -295,18 +353,22 @@ export function createFlowSnapServer(options = {}) {
           const args = [binPath, 'start'];
           if (data.url) args.push('--url', data.url);
           if (data.title) args.push('--title', data.title);
-          args.push('--out', outDir);
+          args.push('--out', resolvedOutDir);
           if (data.profile) args.push('--profile', data.profile);
           if (!data.autoResult) args.push('--no-result');
           if (data.aiEnhance) args.push('--ai');
           if (data.resume) args.push('--resume');
 
-          logMessage('ACTION', `Starting recording session for: ${data.url || 'default'} (Target: ${outDir})`);
+          logMessage('ACTION', `Starting recording session for: ${data.url || 'default'} (Target: ${resolvedOutDir})`);
 
           activeProcess = spawn(process.execPath, args, {
             cwd: rootDir,
             stdio: ['pipe', 'pipe', 'pipe'],
-            env: { ...process.env, DISPLAY: process.env.DISPLAY || ':0' }
+            env: {
+              ...process.env,
+              FLOWSNAP_DATA_DIR: dataDir,
+              DISPLAY: process.env.DISPLAY || ':0'
+            }
           });
 
           activeProcess.stdout.on('data', (d) => {
@@ -361,7 +423,6 @@ export function createFlowSnapServer(options = {}) {
 
     // 9. Recordings Explorer & Detail
     if (pathname === '/api/recordings' && req.method === 'GET') {
-      const recDir = path.join(rootDir, 'recordings');
       const list = [];
       if (fs.existsSync(recDir)) {
         const dirs = fs.readdirSync(recDir, { withFileTypes: true });
@@ -404,7 +465,7 @@ export function createFlowSnapServer(options = {}) {
 
     if (pathname.startsWith('/api/recording/') && req.method === 'GET') {
       const folderName = pathname.replace('/api/recording/', '');
-      const dirPath = path.join(rootDir, 'recordings', folderName);
+      const dirPath = path.join(recDir, folderName);
       if (!fs.existsSync(dirPath)) {
         res.statusCode = 404;
         res.end(JSON.stringify({ error: 'Folder rekaman tidak ditemukan' }));
@@ -460,9 +521,9 @@ export function createFlowSnapServer(options = {}) {
     // 10. Open Folder in Native Explorer
     if (pathname === '/api/open-folder' && req.method === 'GET') {
       const folder = parsedUrl.searchParams.get('folder') || '';
-      let targetPath = rootDir;
+      let targetPath = dataDir;
       if (folder) {
-        targetPath = path.isAbsolute(folder) ? folder : path.join(rootDir, folder);
+        targetPath = path.isAbsolute(folder) ? folder : path.join(dataDir, folder);
       }
       try {
         if (!fs.existsSync(targetPath)) fs.mkdirSync(targetPath, { recursive: true });
@@ -490,7 +551,7 @@ export function createFlowSnapServer(options = {}) {
             res.end(JSON.stringify({ error: 'Folder dan content wajib disertakan' }));
             return;
           }
-          const mdPath = path.join(rootDir, 'recordings', folder, 'GUIDE.md');
+          const mdPath = path.join(recDir, folder, 'GUIDE.md');
           fs.writeFileSync(mdPath, content, 'utf-8');
           logMessage('ACTION', `Updated GUIDE.md for session: ${folder}`);
           res.setHeader('Content-Type', 'application/json');
