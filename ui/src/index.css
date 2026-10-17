@@ -178,3 +178,37 @@ html.light kbd {
   color: #242930;
   border-color: #cbd2dc;
 }
+
+/* Light Mode Secondary Surfaces & Neutral Tones */
+html.light .bg-zinc-900,
+html.light .bg-zinc-900\/40,
+html.light .bg-zinc-900\/50,
+html.light .bg-zinc-900\/60,
+html.light .bg-zinc-900\/80,
+html.light .bg-zinc-850,
+html.light .bg-zinc-800 {
+  background-color: #f1f3f7;
+}
+
+html.light .hover\:bg-zinc-900:hover,
+html.light .hover\:bg-zinc-900\/40:hover,
+html.light .hover\:bg-zinc-850:hover,
+html.light .hover\:bg-zinc-800:hover,
+html.light .hover\:bg-zinc-700:hover {
+  background-color: #e4e7ed;
+}
+
+html.light .bg-black\/60,
+html.light .bg-black\/40 {
+  background-color: #f8f9fa;
+}
+
+html.light .border-zinc-900 {
+  border-color: #d8dde6;
+}
+
+html.light .bg-emerald-950\/20,
+html.light .bg-emerald-950\/80 {
+  background-color: #ecfdf5;
+}
+

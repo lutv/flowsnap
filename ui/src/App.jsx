@@ -588,37 +588,49 @@ export default function App() {
 
                   {/* Toggles */}
                   <div className="pt-2 border-t border-zinc-850 grid grid-cols-3 gap-1.5 text-[10px]">
-                    <label className="flex items-center gap-1.5 border border-zinc-800 bg-zinc-900/40 p-1.5 cursor-pointer hover:border-zinc-700">
+                    <label className={`flex items-center gap-1.5 border p-1.5 cursor-pointer transition ${
+                      theme === 'dark'
+                        ? 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-700 text-zinc-300'
+                        : 'border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 shadow-xs'
+                    }`}>
                       <input
                         type="checkbox"
                         checked={autoResult}
                         onChange={(e) => setAutoResult(e.target.checked)}
                         disabled={isRecording}
-                        className="accent-zinc-100"
+                        className="accent-zinc-800"
                       />
-                      <span>DUAL_SHOT</span>
+                      <span className="font-semibold">DUAL_SHOT</span>
                     </label>
 
-                    <label className="flex items-center gap-1.5 border border-zinc-800 bg-zinc-900/40 p-1.5 cursor-pointer hover:border-zinc-700">
+                    <label className={`flex items-center gap-1.5 border p-1.5 cursor-pointer transition ${
+                      theme === 'dark'
+                        ? 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-700 text-zinc-300'
+                        : 'border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 shadow-xs'
+                    }`}>
                       <input
                         type="checkbox"
                         checked={autoRedact}
                         onChange={(e) => setAutoRedact(e.target.checked)}
                         disabled={isRecording}
-                        className="accent-zinc-100"
+                        className="accent-zinc-800"
                       />
-                      <span>REDACT</span>
+                      <span className="font-semibold">REDACT</span>
                     </label>
 
-                    <label className="flex items-center gap-1.5 border border-zinc-800 bg-zinc-900/40 p-1.5 cursor-pointer hover:border-zinc-700">
+                    <label className={`flex items-center gap-1.5 border p-1.5 cursor-pointer transition ${
+                      theme === 'dark'
+                        ? 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-700 text-zinc-300'
+                        : 'border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-800 shadow-xs'
+                    }`}>
                       <input
                         type="checkbox"
                         checked={aiEnhance}
                         onChange={(e) => setAiEnhance(e.target.checked)}
                         disabled={isRecording}
-                        className="accent-zinc-100"
+                        className="accent-zinc-800"
                       />
-                      <span>AI_SYNTH</span>
+                      <span className="font-semibold">AI_SYNTH</span>
                     </label>
                   </div>
 
@@ -636,9 +648,13 @@ export default function App() {
                       <div className="space-y-2">
                         <button
                           onClick={() => startRecording({ resume: false })}
-                          className="w-full py-2.5 bg-zinc-100 hover:bg-white text-black font-bold flex items-center justify-center gap-2 border border-white transition active:translate-y-px"
+                          className={`w-full py-2.5 font-bold flex items-center justify-center gap-2 border transition active:translate-y-px ${
+                            theme === 'dark'
+                              ? 'bg-zinc-100 hover:bg-white text-black border-white'
+                              : 'bg-zinc-900 hover:bg-black text-white border-zinc-900 shadow-sm'
+                          }`}
                         >
-                          <Play className="w-3.5 h-3.5 fill-black" />
+                          <Play className={`w-3.5 h-3.5 ${theme === 'dark' ? 'fill-black' : 'fill-white'}`} />
                           LAUNCH_NEW_SESSION (MULAI SESI BARU)
                         </button>
                         <p className="text-[10px] text-zinc-500 text-center">
@@ -650,27 +666,37 @@ export default function App() {
                 </div>
 
                 {/* Hotkey Card */}
-                <div className="border border-zinc-850 bg-zinc-950 p-3 space-y-2 text-[11px]">
-                  <div className="text-zinc-300 font-bold flex items-center justify-between border-b border-zinc-900 pb-1.5">
+                <div className={`border p-3 space-y-2 text-[11px] transition ${
+                  theme === 'dark' ? 'border-zinc-850 bg-zinc-950' : 'border-zinc-300 bg-white shadow-xs'
+                }`}>
+                  <div className="text-zinc-300 font-bold flex items-center justify-between border-b border-zinc-850 pb-1.5">
                     <span>HOTKEY_CAPTURE</span>
-                    <span className="text-zinc-600 text-[10px]">CHROMIUM HUD</span>
+                    <span className="text-zinc-500 text-[10px]">CHROMIUM HUD</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-zinc-400">
-                    <div className="flex items-center justify-between bg-black p-1.5 border border-zinc-900">
+                    <div className={`flex items-center justify-between p-1.5 border transition ${
+                      theme === 'dark' ? 'bg-black border-zinc-900' : 'bg-zinc-50 border-zinc-200'
+                    }`}>
                       <span>Klik Elemen</span>
-                      <kbd className="text-zinc-200 font-bold">Auto Dual</kbd>
+                      <kbd className="font-bold text-[10px]">Auto Dual</kbd>
                     </div>
-                    <div className="flex items-center justify-between bg-black p-1.5 border border-zinc-900">
+                    <div className={`flex items-center justify-between p-1.5 border transition ${
+                      theme === 'dark' ? 'bg-black border-zinc-900' : 'bg-zinc-50 border-zinc-200'
+                    }`}>
                       <span>Manual Snap</span>
-                      <kbd className="text-zinc-200 font-bold">F8</kbd>
+                      <kbd className="font-bold text-[10px]">F8</kbd>
                     </div>
-                    <div className="flex items-center justify-between bg-black p-1.5 border border-zinc-900">
+                    <div className={`flex items-center justify-between p-1.5 border transition ${
+                      theme === 'dark' ? 'bg-black border-zinc-900' : 'bg-zinc-50 border-zinc-200'
+                    }`}>
                       <span>Modal Snap</span>
-                      <kbd className="text-zinc-200 font-bold">F9</kbd>
+                      <kbd className="font-bold text-[10px]">F9</kbd>
                     </div>
-                    <div className="flex items-center justify-between bg-black p-1.5 border border-zinc-900">
+                    <div className={`flex items-center justify-between p-1.5 border transition ${
+                      theme === 'dark' ? 'bg-black border-zinc-900' : 'bg-zinc-50 border-zinc-200'
+                    }`}>
                       <span>Submit Form</span>
-                      <kbd className="text-zinc-200 font-bold">Enter</kbd>
+                      <kbd className="font-bold text-[10px]">Enter</kbd>
                     </div>
                   </div>
                 </div>
@@ -680,14 +706,18 @@ export default function App() {
               <div className="lg:col-span-7 flex flex-col space-y-4">
                 <div className="border border-zinc-800 bg-zinc-950 flex-1 flex flex-col min-h-[480px]">
                   {/* Monitor Header */}
-                  <div className="p-3.5 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/40">
+                  <div className={`p-3.5 border-b flex items-center justify-between transition ${
+                    theme === 'dark' ? 'border-zinc-800 bg-zinc-900/40' : 'border-zinc-200 bg-zinc-100/90'
+                  }`}>
                     <div className="flex items-center gap-2">
                       <Radio className={`w-3.5 h-3.5 ${isRecording ? 'text-red-400 animate-pulse' : 'text-zinc-500'}`} />
                       <span className="font-bold text-zinc-100">
                         {isRecording ? 'LIVE_STREAMING (CHROMIUM AKTIF)' : 'STREAM_MONITOR (STANDBY)'}
                       </span>
                       {liveSession?.folder && !dismissedSession && (
-                        <span className="text-[10px] text-zinc-500 font-mono">
+                        <span className={`text-[10px] font-mono ${
+                          theme === 'dark' ? 'text-zinc-500' : 'text-zinc-600 font-medium'
+                        }`}>
                           • {liveSession.folder} ({liveSteps.length} STEPS)
                         </span>
                       )}
@@ -697,7 +727,11 @@ export default function App() {
                       {liveSession?.folder && !dismissedSession && (
                         <button
                           onClick={() => openInFileManager(liveSession.folder)}
-                          className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 flex items-center gap-1 transition text-[11px]"
+                          className={`px-2 py-1 border flex items-center gap-1 transition text-[11px] font-medium rounded-xs ${
+                            theme === 'dark'
+                              ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border-zinc-800'
+                              : 'bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-300 shadow-xs'
+                          }`}
                           title="Buka folder rekaman ini di OS File Manager (Finder / Nautilus)"
                         >
                           <Folder className="w-3 h-3 text-zinc-400" />
@@ -712,15 +746,23 @@ export default function App() {
                               setOutFolder(liveSession.folder);
                               startRecording({ resume: true, folder: liveSession.folder });
                             }}
-                            className="px-2.5 py-1 bg-emerald-900 hover:bg-emerald-800 text-emerald-100 border border-emerald-600 flex items-center gap-1 font-bold transition text-[11px]"
+                            className={`px-2.5 py-1 border flex items-center gap-1 font-bold transition text-[11px] rounded-xs ${
+                              theme === 'dark'
+                                ? 'bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border-emerald-700'
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-xs'
+                            }`}
                             title="Buka kembali Chromium untuk melanjutkan sesi ini (Cookie & Login tersimpan otomatis di .auth_state.json)"
                           >
-                            <Play className="w-2.5 h-2.5 fill-emerald-100" />
+                            <Play className="w-2.5 h-2.5 fill-current" />
                             CONTINUE_SESSION
                           </button>
                           <button
                             onClick={() => setDismissedSession(true)}
-                            className="px-2 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 flex items-center gap-1 transition text-[11px]"
+                            className={`px-2 py-1 border flex items-center gap-1 transition text-[11px] font-medium rounded-xs ${
+                              theme === 'dark'
+                                ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border-zinc-800'
+                                : 'bg-white hover:bg-zinc-50 text-zinc-700 hover:text-zinc-900 border-zinc-300 shadow-xs'
+                            }`}
                             title="Tutup tampilan sesi ini dari stream monitor"
                           >
                             <X className="w-3 h-3" />
@@ -732,7 +774,11 @@ export default function App() {
                       {liveSession?.viewerUrl && !dismissedSession && (
                         <button
                           onClick={() => openInspector(liveSession.folder)}
-                          className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 flex items-center gap-1 border border-zinc-700 text-[11px]"
+                          className={`px-2 py-1 flex items-center gap-1 border text-[11px] font-medium transition rounded-xs ${
+                            theme === 'dark'
+                              ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-700'
+                              : 'bg-white hover:bg-zinc-50 text-zinc-800 border-zinc-300 shadow-xs'
+                          }`}
                         >
                           <Eye className="w-3 h-3" />
                           PREVIEW
@@ -743,20 +789,28 @@ export default function App() {
 
                   {/* Sub-header: Absolute Path & One-Click Copy */}
                   {liveSession?.folder && !dismissedSession && (
-                    <div className="px-3.5 py-1.5 border-b border-zinc-850 bg-black/60 flex items-center justify-between text-[10px] font-mono text-zinc-500">
+                    <div className={`px-3.5 py-1.5 border-b flex items-center justify-between text-[10px] font-mono transition ${
+                      theme === 'dark'
+                        ? 'border-zinc-850 bg-black/60 text-zinc-500'
+                        : 'border-zinc-200 bg-zinc-50 text-zinc-600'
+                    }`}>
                       <div className="flex items-center gap-1.5 truncate">
-                        <span className="text-zinc-600">SOURCE:</span>
-                        <span className="text-zinc-400 truncate select-all">
+                        <span className={theme === 'dark' ? 'text-zinc-600' : 'text-zinc-400'}>SOURCE:</span>
+                        <span className={`truncate select-all ${
+                          theme === 'dark' ? 'text-zinc-400' : 'text-zinc-700 font-medium'
+                        }`}>
                           {liveSession.absolutePath || `./recordings/${liveSession.folder}`}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                           onClick={() => copyPathToClipboard(liveSession.absolutePath || `./recordings/${liveSession.folder}`, 'live')}
-                          className="hover:text-zinc-200 flex items-center gap-1 text-[10px]"
+                          className={`flex items-center gap-1 text-[10px] transition ${
+                            theme === 'dark' ? 'hover:text-zinc-200 text-zinc-400' : 'hover:text-zinc-900 text-zinc-600'
+                          }`}
                           title="Salin path direktori ke clipboard"
                         >
-                          {copiedPath === 'live' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          {copiedPath === 'live' ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                           <span>{copiedPath === 'live' ? 'COPIED' : 'COPY'}</span>
                         </button>
                       </div>
@@ -766,7 +820,9 @@ export default function App() {
                   {/* Body: Dismissed State vs Active Monitor Stream */}
                   {dismissedSession && !isRecording ? (
                     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3 min-h-[460px]">
-                      <div className="w-10 h-10 border border-zinc-800 bg-zinc-900 flex items-center justify-center text-zinc-600">
+                      <div className={`w-10 h-10 border flex items-center justify-center ${
+                        theme === 'dark' ? 'border-zinc-800 bg-zinc-900 text-zinc-600' : 'border-zinc-300 bg-white text-zinc-500 shadow-xs'
+                      }`}>
                         <Folder className="w-5 h-5 text-zinc-500" />
                       </div>
                       <div className="space-y-1">
@@ -778,7 +834,11 @@ export default function App() {
                       {liveSession?.folder && (
                         <button
                           onClick={() => setDismissedSession(false)}
-                          className="px-3 py-1.5 border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-[11px] flex items-center gap-1.5 transition"
+                          className={`px-3 py-1.5 border text-[11px] flex items-center gap-1.5 transition ${
+                            theme === 'dark'
+                              ? 'border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-zinc-300'
+                              : 'border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 shadow-xs'
+                          }`}
                         >
                           <RefreshCw className="w-3 h-3" />
                           BUKA KEMBALI MONITOR SESI ({liveSession.folder})
@@ -788,31 +848,35 @@ export default function App() {
                   ) : (
                     <>
                       {/* Mode Tabs: 'feed' (live steps) vs 'guide_frame' (live HTML viewer) */}
-                      <div className="border-b border-zinc-850 bg-black px-3 py-1.5 flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-[10px]">
+                      <div className={`border-b px-3 py-1.5 flex items-center justify-between transition ${
+                        theme === 'dark' ? 'border-zinc-850 bg-black' : 'border-zinc-200 bg-zinc-50'
+                      }`}>
+                        <div className={`flex items-center p-0.5 rounded border text-[10px] ${
+                          theme === 'dark' ? 'border-zinc-800 bg-zinc-950' : 'border-zinc-300 bg-zinc-200/70 shadow-inner'
+                        }`}>
                           <button
                             onClick={() => setPreviewMode('feed')}
-                            className={`px-2.5 py-1 transition ${
+                            className={`px-2.5 py-0.5 transition rounded-xs ${
                               previewMode === 'feed'
-                                ? 'bg-zinc-800 text-white font-bold'
-                                : 'text-zinc-400 hover:text-zinc-200'
+                                ? (theme === 'dark' ? 'bg-zinc-800 text-white font-bold' : 'bg-white text-zinc-900 font-bold border border-zinc-300 shadow-xs')
+                                : (theme === 'dark' ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900')
                             }`}
                           >
-                            [STREAM FEED]
+                            STREAM FEED
                           </button>
                           <button
                             onClick={() => setPreviewMode('guide_frame')}
-                            className={`px-2.5 py-1 transition ${
+                            className={`px-2.5 py-0.5 transition rounded-xs ${
                               previewMode === 'guide_frame'
-                                ? 'bg-zinc-800 text-white font-bold'
-                                : 'text-zinc-400 hover:text-zinc-200'
+                                ? (theme === 'dark' ? 'bg-zinc-800 text-white font-bold' : 'bg-white text-zinc-900 font-bold border border-zinc-300 shadow-xs')
+                                : (theme === 'dark' ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-600 hover:text-zinc-900')
                             }`}
                           >
-                            [LIVE GUIDE HTML]
+                            LIVE GUIDE HTML
                           </button>
                         </div>
 
-                        <span className="text-[10px] text-zinc-500">
+                        <span className="text-[10px] text-zinc-500 font-mono">
                           {isRecording ? 'STATUS: BROWSER_RECORDING (800MS)' : 'STATUS: CHROMIUM_CLOSED / IDLE'}
                         </span>
                       </div>
@@ -822,25 +886,33 @@ export default function App() {
                         <div className="flex-1 p-4 flex flex-col justify-between space-y-4 overflow-y-auto max-h-[560px]">
                           {/* Spotlight: LATEST STEP */}
                           {latestStep ? (
-                            <div className={`p-3.5 space-y-2.5 border-2 ${
+                            <div className={`p-3.5 space-y-2.5 border-2 transition ${
                               isRecording 
-                                ? 'border-emerald-800/80 bg-emerald-950/20' 
-                                : 'border-zinc-800 bg-zinc-950'
+                                ? (theme === 'dark' ? 'border-emerald-800/80 bg-emerald-950/20' : 'border-emerald-600/70 bg-emerald-50/60')
+                                : (theme === 'dark' ? 'border-zinc-800 bg-zinc-950' : 'border-zinc-200 bg-white shadow-xs')
                             }`}>
-                              <div className="flex items-center justify-between pb-2 border-b border-zinc-850">
+                              <div className={`flex items-center justify-between pb-2 border-b ${
+                                theme === 'dark' ? 'border-zinc-850' : 'border-zinc-200'
+                              }`}>
                                 <div className="flex items-center gap-2">
                                   {isRecording ? (
                                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                                   ) : (
-                                    <span className="w-2 h-2 rounded-full bg-zinc-600"></span>
+                                    <span className={`w-2 h-2 rounded-full ${theme === 'dark' ? 'bg-zinc-600' : 'bg-zinc-400'}`}></span>
                                   )}
                                   <span className={`font-bold text-xs tracking-wide ${
-                                    isRecording ? 'text-emerald-300' : 'text-zinc-300'
+                                    isRecording 
+                                      ? (theme === 'dark' ? 'text-emerald-300' : 'text-emerald-700')
+                                      : (theme === 'dark' ? 'text-zinc-300' : 'text-zinc-800')
                                   }`}>
                                     {isRecording ? 'BARUSAN TERCAPTURE' : 'LANGKAH TERAKHIR TERSIMPAN'} • STEP #{String(latestStep.step).padStart(2, '0')}
                                   </span>
                                 </div>
-                                <span className="text-[10px] text-zinc-400 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5">
+                                <span className={`text-[10px] px-1.5 py-0.5 border font-semibold ${
+                                  theme === 'dark'
+                                    ? 'text-zinc-400 bg-zinc-900 border-zinc-800'
+                                    : 'text-zinc-700 bg-zinc-100 border-zinc-300'
+                                }`}>
                                   {latestStep.type?.toUpperCase()}
                                 </span>
                               </div>
@@ -860,13 +932,15 @@ export default function App() {
                                 <div className="space-y-1">
                                   <div className="flex items-center justify-between text-[10px] text-zinc-400">
                                     <span>[1] AKSI & HIGHLIGHT</span>
-                                    <span className="text-zinc-600">ACTION</span>
+                                    <span className="text-zinc-500">ACTION</span>
                                   </div>
                                   <div
                                     onClick={() =>
                                       setLightboxImg(`/recordings/${liveSession.folder}/${latestStep.actionFile}`)
                                     }
-                                    className="group relative border border-zinc-800 bg-black aspect-video overflow-hidden cursor-zoom-in"
+                                    className={`group relative border aspect-video overflow-hidden cursor-zoom-in ${
+                                      theme === 'dark' ? 'border-zinc-800 bg-black' : 'border-zinc-300 bg-zinc-100'
+                                    }`}
                                   >
                                     <img
                                       src={`/recordings/${liveSession.folder}/${latestStep.actionFile}`}
@@ -883,14 +957,16 @@ export default function App() {
                                 <div className="space-y-1">
                                   <div className="flex items-center justify-between text-[10px] text-zinc-400">
                                     <span>[2] HASIL PERUBAHAN</span>
-                                    <span className="text-zinc-600">RESULT</span>
+                                    <span className="text-zinc-500">RESULT</span>
                                   </div>
                                   <div
                                     onClick={() =>
                                       latestStep.resultFile &&
                                       setLightboxImg(`/recordings/${liveSession.folder}/${latestStep.resultFile}`)
                                     }
-                                    className="group relative border border-zinc-800 bg-black aspect-video overflow-hidden cursor-zoom-in"
+                                    className={`group relative border aspect-video overflow-hidden cursor-zoom-in ${
+                                      theme === 'dark' ? 'border-zinc-800 bg-black' : 'border-zinc-300 bg-zinc-100'
+                                    }`}
                                   >
                                     {latestStep.resultFile ? (
                                       <>
@@ -912,10 +988,16 @@ export default function App() {
                                 </div>
                               </div>
 
-                              <div className="flex items-center justify-between text-[10px] text-zinc-400 border-t border-zinc-850 pt-2 font-mono">
+                              <div className={`flex items-center justify-between text-[10px] text-zinc-400 border-t pt-2 font-mono ${
+                                theme === 'dark' ? 'border-zinc-850' : 'border-zinc-200'
+                              }`}>
                                 <span className="truncate max-w-[280px]">URL: {latestStep.url}</span>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-emerald-400 border border-emerald-900/60 bg-emerald-950/40 px-1.5 py-0.5" title="Cookies dan local storage tersimpan di .auth_state.json">
+                                  <span className={`px-1.5 py-0.5 border ${
+                                    theme === 'dark'
+                                      ? 'text-emerald-400 border-emerald-900/60 bg-emerald-950/40'
+                                      : 'text-emerald-700 border-emerald-300 bg-emerald-50'
+                                  }`} title="Cookies dan local storage tersimpan di .auth_state.json">
                                     🛡️ AUTH_PRESERVED
                                   </span>
                                   <span className={isRecording ? 'text-emerald-400' : 'text-zinc-500'}>
@@ -925,20 +1007,22 @@ export default function App() {
                               </div>
                             </div>
                           ) : (
-                            <div className="border border-dashed border-zinc-800 p-8 text-center text-zinc-600 space-y-2">
-                              <Camera className="w-6 h-6 mx-auto text-zinc-700" />
-                              <div>Belum ada langkah yang di-capture.</div>
-                              <div className="text-[10px] text-zinc-600">
+                            <div className={`border border-dashed p-8 text-center space-y-2 ${
+                              theme === 'dark' ? 'border-zinc-800 text-zinc-600' : 'border-zinc-300 text-zinc-500 bg-zinc-50/50'
+                            }`}>
+                              <Camera className="w-6 h-6 mx-auto text-zinc-500" />
+                              <div className="font-medium">Belum ada langkah yang di-capture.</div>
+                              <div className="text-[10px]">
                                 Klik elemen di Chromium atau tekan F8 untuk mengambil screenshot pertama.
                               </div>
                             </div>
                           )}
 
                           {/* Stream History List (All Previous Steps) */}
-                          <div className="space-y-2 pt-2 border-t border-zinc-850">
+                          <div className={`space-y-2 pt-2 border-t ${theme === 'dark' ? 'border-zinc-850' : 'border-zinc-200'}`}>
                             <div className="text-[11px] font-bold text-zinc-400 flex items-center justify-between">
                               <span>TIMELINE_HISTORI_LANGKAH ({liveSteps.length})</span>
-                              <span className="text-[10px] text-zinc-600">KLIK KARTU UNTUK INSPEKSI</span>
+                              <span className="text-[10px] text-zinc-500">KLIK KARTU UNTUK INSPEKSI</span>
                             </div>
 
                             <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
@@ -950,29 +1034,43 @@ export default function App() {
                                     onClick={() => setActivePreviewStep(step)}
                                     className={`p-2 border flex items-center justify-between cursor-pointer transition ${
                                       isLatest
-                                        ? 'border-emerald-700/60 bg-emerald-950/20'
-                                        : 'border-zinc-850 bg-black hover:border-zinc-700'
+                                        ? (theme === 'dark' ? 'border-emerald-700/60 bg-emerald-950/20' : 'border-emerald-500/60 bg-emerald-50/80 shadow-xs')
+                                        : (theme === 'dark' ? 'border-zinc-850 bg-black hover:border-zinc-700' : 'border-zinc-200 bg-white hover:bg-zinc-50 shadow-xs')
                                     }`}
                                   >
                                     <div className="flex items-center gap-2.5">
-                                      <span className="font-bold text-zinc-300 text-[11px]">
+                                      <span className={`font-bold text-[11px] ${
+                                        theme === 'dark' ? 'text-zinc-300' : 'text-zinc-700'
+                                      }`}>
                                         #{String(step.step).padStart(2, '0')}
                                       </span>
-                                      <span className="text-[10px] px-1 py-0.5 border border-zinc-800 bg-zinc-900 text-zinc-300">
+                                      <span className={`text-[10px] px-1 py-0.5 border font-medium ${
+                                        theme === 'dark'
+                                          ? 'border-zinc-800 bg-zinc-900 text-zinc-300'
+                                          : 'border-zinc-300 bg-zinc-100 text-zinc-800'
+                                      }`}>
                                         {step.type}
                                       </span>
-                                      <span className="text-zinc-200 text-xs font-semibold truncate max-w-[240px]">
+                                      <span className={`text-xs font-semibold truncate max-w-[240px] ${
+                                        theme === 'dark' ? 'text-zinc-200' : 'text-zinc-900'
+                                      }`}>
                                         {step.label}
                                       </span>
                                     </div>
 
                                     <div className="flex items-center gap-2">
                                       {step.isRedacted && (
-                                        <span className="text-[9px] text-amber-400 border border-amber-900 px-1">
+                                        <span className={`text-[9px] px-1 border ${
+                                          theme === 'dark'
+                                            ? 'text-amber-400 border-amber-900 bg-amber-950/30'
+                                            : 'text-amber-700 border-amber-300 bg-amber-50'
+                                        }`}>
                                           REDACTED
                                         </span>
                                       )}
-                                      <div className="w-6 h-4 border border-zinc-800 bg-zinc-900 overflow-hidden">
+                                      <div className={`w-6 h-4 border overflow-hidden ${
+                                        theme === 'dark' ? 'border-zinc-800 bg-zinc-900' : 'border-zinc-300 bg-zinc-100'
+                                      }`}>
                                         <img
                                           src={`/recordings/${liveSession?.folder}/${step.actionFile}`}
                                           alt="thumb"
