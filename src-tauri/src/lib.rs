@@ -116,6 +116,15 @@ fn try_start_engine(app: &tauri::App) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  #[cfg(target_os = "linux")]
+  {
+    if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
+      unsafe {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+      }
+    }
+  }
+
   tauri::Builder::default()
     .setup(|app| {
       try_start_engine(app);

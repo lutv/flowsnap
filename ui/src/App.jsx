@@ -820,10 +820,10 @@ export default function App() {
                       </button>
                     ) : (
                       <div className="space-y-2">
-                        {recordingsList.some(r => r.id === outFolder) && (
+                        {recordings.some(r => r.id === outFolder) && (
                           <button
                             onClick={() => {
-                              const existing = recordingsList.find(r => r.id === outFolder);
+                              const existing = recordings.find(r => r.id === outFolder);
                               startRecording({
                                 resume: true,
                                 folder: outFolder,
